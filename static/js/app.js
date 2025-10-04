@@ -354,6 +354,10 @@ class ConversationApp {
             });
 
             const data = await response.json();
+            
+            // Debug: Log the full response
+            console.log('API Response:', data);
+            console.log('Message object:', data.message);
 
             if (data.status === 'success') {
                 this.displayMessage(data.message);
@@ -408,6 +412,9 @@ class ConversationApp {
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = JSON.parse(line.slice(6));
+                        
+                        // Debug logging
+                        console.log('Stream data:', data);
 
                         if (data.error) {
                             this.showStatus(`Error: ${data.error}`, 'error');
@@ -430,6 +437,7 @@ class ConversationApp {
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         } else if (data.type === 'content') {
                             fullContent += data.chunk;
+                            console.log('Accumulated content:', fullContent);
                             const contentDiv = streamingMessage.querySelector('.message-content');
                             contentDiv.innerHTML = this.renderMarkdown(fullContent);
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -500,7 +508,14 @@ class ConversationApp {
         messageDiv.className = `message ${message.role}`;
 
         const timestamp = new Date(message.timestamp).toLocaleString();
-        const content = this.renderMarkdown(message.content);
+        
+        // Debug: Log the message object to console
+        console.log('Displaying message:', message);
+        console.log('Message content:', message.content);
+        
+        // Ensure content exists and is not undefined
+        const messageContent = message.content || '';
+        const content = this.renderMarkdown(messageContent);
 
         let metaHtml = '';
         if (message.tokens_used || message.cost) {
@@ -531,19 +546,33 @@ class ConversationApp {
     }
 
     renderMarkdown(text) {
-        // Configure marked options
-        marked.setOptions({
-            highlight: function(code, lang) {
-                if (lang && Prism.languages[lang]) {
-                    return Prism.highlight(code, Prism.languages[lang], lang);
-                }
-                return code;
-            },
-            breaks: true,
-            gfm: true
-        });
+        // Handle empty or undefined text
+        if (!text) {
+            console.warn('renderMarkdown received empty text:', text);
+            return '';
+        }
+        
+        try {
+            // Configure marked options
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && Prism.languages[lang]) {
+                        return Prism.highlight(code, Prism.languages[lang], lang);
+                    }
+                    return code;
+                },
+                breaks: true,
+                gfm: true
+            });
 
-        return marked.parse(text);
+            const rendered = marked.parse(text);
+            console.log('Rendered markdown:', rendered.substring(0, 100) + '...');
+            return rendered;
+        } catch (error) {
+            console.error('Error rendering markdown:', error);
+            // Fallback to plain text with HTML escaping
+            return this.escapeHtml(text);
+        }
     }
 
     updateTokenUsage(tokenUsage) {

@@ -108,10 +108,15 @@ class AIProviderFactory:
                 'requires_api_key': True,
                 'supports_streaming': True,
                 'models': [
+                    'gemini-2.5-pro',
+                    'gemini-2.0-flash-exp',
+                    'gemini-exp-1206',
+                    'gemini-2.0-flash-thinking-exp-1219',
+                    'gemini-1.5-pro-latest',
                     'gemini-1.5-pro',
+                    'gemini-1.5-flash-latest',
                     'gemini-1.5-flash',
-                    'gemini-pro',
-                    'gemini-pro-vision',
+                    'gemini-1.5-flash-8b',
                 ],
             },
             {

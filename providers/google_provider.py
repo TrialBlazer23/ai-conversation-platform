@@ -1,84 +1,52 @@
 """
 Google Gemini AI Provider
-Supports both Gemini API and Vertex AI with streaming
+Supports Gemini API with the new @google/genai SDK format
 """
 from typing import List, Dict, Generator, Optional
 import os
+import json
+import requests
 from .base_provider import BaseAIProvider
 
-try:
-    import google.generativeai as genai
-    from google.generativeai.types import GenerationConfig
-    GENAI_AVAILABLE = True
-except ImportError:
-    GENAI_AVAILABLE = False
-
-try:
-    import vertexai
-    from vertexai.generative_models import GenerativeModel, GenerationConfig as VertexGenerationConfig
-    VERTEXAI_AVAILABLE = True
-except ImportError:
-    VERTEXAI_AVAILABLE = False
+# Using direct REST API calls following the new @google/genai format
 
 
 class GoogleProvider(BaseAIProvider):
     """
-    Google AI Provider supporting both Gemini API and Vertex AI
+    Google AI Provider using the new Gemini API REST format
     
-    Supports:
-    - Gemini Pro (gemini-pro)
-    - Gemini Pro Vision (gemini-pro-vision)
-    - Gemini Ultra (gemini-ultra) - via Vertex AI
-    - Gemini 1.5 Pro (gemini-1.5-pro)
-    - Gemini 1.5 Flash (gemini-1.5-flash)
+    Supports latest Gemini models:
+    - gemini-2.5-pro - Latest flagship model
+    - gemini-2.0-flash-exp - Latest experimental
+    - gemini-1.5-pro - Production flagship
+    - gemini-1.5-flash - Fast & efficient
     """
     
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = 'gemini-pro',
+        model: str = 'gemini-2.5-pro',
         temperature: float = 0.7,
         system_prompt: str = '',
-        max_tokens: int = 8192,
-        use_vertex: bool = False,
-        project_id: Optional[str] = None,
-        location: str = 'us-central1'
+        max_tokens: int = 8192
     ):
         """
         Initialize Google provider
         
         Args:
-            api_key: Google API key (for Gemini API)
+            api_key: Google API key
             model: Model name
             temperature: Sampling temperature (0.0 to 1.0)
             system_prompt: System instructions
             max_tokens: Maximum tokens to generate
-            use_vertex: Use Vertex AI instead of Gemini API
-            project_id: GCP project ID (for Vertex AI)
-            location: GCP region (for Vertex AI)
         """
         super().__init__(api_key, model, temperature, system_prompt)
         self.max_tokens = max_tokens
-        self.use_vertex = use_vertex
-        self.project_id = project_id
-        self.location = location
         self.supports_streaming = True
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
         
-        # Initialize appropriate SDK
-        if self.use_vertex:
-            if not VERTEXAI_AVAILABLE:
-                raise ImportError(
-                    "Vertex AI SDK not installed. Install with: pip install google-cloud-aiplatform"
-                )
-            vertexai.init(project=project_id, location=location)
-            self.client = GenerativeModel(model)
-        else:
-            if not GENAI_AVAILABLE:
-                raise ImportError(
-                    "Google Generative AI SDK not installed. Install with: pip install google-generativeai"
-                )
-            genai.configure(api_key=api_key)
-            self.client = genai.GenerativeModel(model)
+        if not api_key:
+            raise ValueError("Google API key is required")
     
     def _format_messages(self, messages: List[Dict]) -> List[Dict]:
         """
@@ -96,28 +64,40 @@ class GoogleProvider(BaseAIProvider):
             if role == 'assistant':
                 role = 'model'
             elif role == 'system':
-                # Google doesn't have system role, prepend to first user message
-                # We'll handle this in the generation config
+                # Handle system messages by prepending to first user message
                 continue
             
             formatted.append({
                 'role': role,
-                'parts': [content]
+                'parts': [{'text': content}]
             })
         
         return formatted
     
-    def _create_generation_config(self) -> Dict:
-        """Create generation configuration"""
-        config = {
-            'temperature': self.temperature,
-            'max_output_tokens': self.max_tokens,
+    def _create_request_payload(self, messages: List[Dict]) -> Dict:
+        """Create request payload for Gemini API"""
+        formatted_messages = self._format_messages(messages)
+        
+        # Handle system prompt
+        system_instruction = None
+        if self.system_prompt:
+            system_instruction = {
+                'parts': [{'text': self.system_prompt}]
+            }
+        
+        # Build the payload
+        payload = {
+            'contents': formatted_messages,
+            'generationConfig': {
+                'temperature': self.temperature,
+                'maxOutputTokens': self.max_tokens,
+            }
         }
         
-        if self.use_vertex:
-            return VertexGenerationConfig(**config)
-        else:
-            return GenerationConfig(**config)
+        if system_instruction:
+            payload['systemInstruction'] = system_instruction
+            
+        return payload
     
     def generate_response(self, messages: List[Dict]) -> str:
         """
@@ -130,26 +110,32 @@ class GoogleProvider(BaseAIProvider):
             Generated response text
         """
         try:
-            formatted_messages = self._format_messages(messages)
-            generation_config = self._create_generation_config()
+            payload = self._create_request_payload(messages)
             
-            # Build the conversation history
-            chat = self.client.start_chat(history=formatted_messages[:-1] if len(formatted_messages) > 1 else [])
+            # Make API request
+            url = f"{self.base_url}/models/{self.model}:generateContent"
+            headers = {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': self.api_key
+            }
             
-            # Add system prompt if provided
-            if self.system_prompt:
-                # Prepend system prompt to the user message
-                last_message = formatted_messages[-1]['parts'][0]
-                formatted_messages[-1]['parts'][0] = f"{self.system_prompt}\n\n{last_message}"
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
             
-            # Generate response
-            response = chat.send_message(
-                formatted_messages[-1]['parts'][0],
-                generation_config=generation_config
-            )
+            result = response.json()
             
-            return response.text
+            # Extract text from response
+            if 'candidates' in result and len(result['candidates']) > 0:
+                candidate = result['candidates'][0]
+                if 'content' in candidate and 'parts' in candidate['content']:
+                    for part in candidate['content']['parts']:
+                        if 'text' in part:
+                            return part['text']
+            
+            return "No response generated"
         
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Google API request error: {str(e)}")
         except Exception as e:
             raise Exception(f"Google API error: {str(e)}")
     
@@ -164,28 +150,42 @@ class GoogleProvider(BaseAIProvider):
             Chunks of generated text
         """
         try:
-            formatted_messages = self._format_messages(messages)
-            generation_config = self._create_generation_config()
+            payload = self._create_request_payload(messages)
             
-            # Build the conversation history
-            chat = self.client.start_chat(history=formatted_messages[:-1] if len(formatted_messages) > 1 else [])
+            # Make streaming API request
+            url = f"{self.base_url}/models/{self.model}:streamGenerateContent"
+            headers = {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': self.api_key
+            }
             
-            # Add system prompt if provided
-            if self.system_prompt:
-                last_message = formatted_messages[-1]['parts'][0]
-                formatted_messages[-1]['parts'][0] = f"{self.system_prompt}\n\n{last_message}"
+            response = requests.post(url, headers=headers, json=payload, stream=True)
+            response.raise_for_status()
             
-            # Stream response
-            response = chat.send_message(
-                formatted_messages[-1]['parts'][0],
-                generation_config=generation_config,
-                stream=True
-            )
-            
-            for chunk in response:
-                if chunk.text:
-                    yield chunk.text
+            # Process streaming response
+            for line in response.iter_lines():
+                if line:
+                    line = line.decode('utf-8')
+                    if line.startswith('data: '):
+                        try:
+                            json_str = line[6:]  # Remove 'data: ' prefix
+                            if json_str.strip() == '[DONE]':
+                                break
+                                
+                            chunk_data = json.loads(json_str)
+                            
+                            # Extract text from chunk
+                            if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
+                                candidate = chunk_data['candidates'][0]
+                                if 'content' in candidate and 'parts' in candidate['content']:
+                                    for part in candidate['content']['parts']:
+                                        if 'text' in part:
+                                            yield part['text']
+                        except json.JSONDecodeError:
+                            continue
         
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Google API streaming request error: {str(e)}")
         except Exception as e:
             raise Exception(f"Google API streaming error: {str(e)}")
     
@@ -194,27 +194,27 @@ class GoogleProvider(BaseAIProvider):
         """Return list of available Google models"""
         return [
             {
+                'id': 'gemini-2.5-pro',
+                'name': 'Gemini 2.5 Pro',
+                'description': 'Latest flagship model with 2M token context',
+                'context_window': 2000000
+            },
+            {
+                'id': 'gemini-2.0-flash-exp',
+                'name': 'Gemini 2.0 Flash Experimental',
+                'description': 'Latest experimental model',
+                'context_window': 1000000
+            },
+            {
                 'id': 'gemini-1.5-pro',
                 'name': 'Gemini 1.5 Pro',
-                'description': 'Most capable model, 1M token context',
-                'context_window': 1000000
+                'description': 'Production flagship, 2M token context',
+                'context_window': 2000000
             },
             {
                 'id': 'gemini-1.5-flash',
                 'name': 'Gemini 1.5 Flash',
                 'description': 'Fast and efficient, 1M token context',
                 'context_window': 1000000
-            },
-            {
-                'id': 'gemini-pro',
-                'name': 'Gemini Pro',
-                'description': 'Balanced performance and speed',
-                'context_window': 32000
-            },
-            {
-                'id': 'gemini-pro-vision',
-                'name': 'Gemini Pro Vision',
-                'description': 'Multimodal model with vision capabilities',
-                'context_window': 16000
             },
         ]
