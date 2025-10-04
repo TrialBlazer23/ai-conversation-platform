@@ -2,7 +2,7 @@
 Anthropic Claude provider implementation with streaming support
 """
 from typing import List, Dict, Generator
-from providers.base_provider import BaseAIProvider
+from .base_provider import BaseAIProvider
 
 
 class AnthropicProvider(BaseAIProvider):

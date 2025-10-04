@@ -4,7 +4,7 @@ Supports streaming and provides cost-free inference
 """
 from typing import List, Dict, Generator
 import requests
-from providers.base_provider import BaseAIProvider
+from .base_provider import BaseAIProvider
 from config import Config
 
 

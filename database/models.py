@@ -65,7 +65,7 @@ class Message(db.Model):
     model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     tokens_used: Mapped[int] = mapped_column(Integer, default=0)
     cost: Mapped[float] = mapped_column(Float, default=0.0)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     
     # Relationships
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
@@ -80,7 +80,7 @@ class Message(db.Model):
             'timestamp': self.created_at.isoformat(),
             'tokens_used': self.tokens_used,
             'cost': self.cost,
-            'metadata': self.metadata or {}
+            'metadata': self.extra_metadata or {}
         }
 
 
