@@ -229,7 +229,9 @@ class ConversationApp {
     async saveConfig() {
         const apiKeys = {
             openai: document.getElementById('openai-key').value,
-            anthropic: document.getElementById('anthropic-key').value
+            anthropic: document.getElementById('anthropic-key').value,
+            gemini: document.getElementById('gemini-key').value,
+            vertex_ai: document.getElementById('vertex-ai-key').value
         };
 
         const models = [];
@@ -275,6 +277,8 @@ class ConversationApp {
             if (config.api_keys) {
                 document.getElementById('openai-key').value = config.api_keys.openai || '';
                 document.getElementById('anthropic-key').value = config.api_keys.anthropic || '';
+                document.getElementById('gemini-key').value = config.api_keys.gemini || '';
+                document.getElementById('vertex-ai-key').value = config.api_keys.vertex_ai || '';
             }
         } catch (error) {
             console.error('Error loading config:', error);
