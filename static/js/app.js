@@ -542,7 +542,7 @@ class ConversationApp {
 
     renderMarkdown(text) {
         // Handle undefined, null, or empty text
-        if (!text || text === '') {
+        if (!text || text.trim() === '') {
             console.warn('renderMarkdown: Empty or undefined text provided');
             return '<p><em>No content</em></p>';
         }
