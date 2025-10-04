@@ -1,0 +1,28 @@
+{
+  "name": "Brainstorm Mode",
+  "description": "Multiple AI models collaborate to generate creative ideas",
+  "initial_prompt": "Let's brainstorm creative ideas for: [TOPIC]. Each model should build on previous ideas, add new perspectives, and help refine the concepts.",
+  "models": [
+    {
+      "provider": "openai",
+      "model": "gpt-4",
+      "name": "Creative Explorer",
+      "temperature": 0.9,
+      "system_prompt": "You are a creative brainstorming partner. Generate novel, unconventional ideas. Think laterally and make unexpected connections. Build on others' ideas by adding unique twists."
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-3-sonnet-20240229",
+      "name": "Practical Analyst",
+      "temperature": 0.6,
+      "system_prompt": "You are a practical brainstorming partner. Evaluate ideas for feasibility, identify potential challenges, and suggest improvements. Balance creativity with pragmatism."
+    },
+    {
+      "provider": "ollama",
+      "model": "llama2",
+      "name": "Synthesizer",
+      "temperature": 0.7,
+      "system_prompt": "You are a synthesis expert in brainstorming. Your role is to combine previous ideas into cohesive concepts, find patterns, and suggest how different ideas could work together."
+    }
+  ]
+}
