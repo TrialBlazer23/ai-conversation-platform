@@ -31,7 +31,13 @@ class OpenAIProvider(BaseAIProvider):
                 temperature=self.temperature,
             )
 
-            return response.choices[0].message.content
+            # Extract content with defensive checks
+            if response.choices and len(response.choices) > 0:
+                content = response.choices[0].message.content
+                if content is not None:
+                    return content
+            
+            raise Exception("No content in OpenAI response")
 
         except Exception as exc:  # noqa: BLE001
             raise Exception(f"OpenAI API error: {exc}") from exc

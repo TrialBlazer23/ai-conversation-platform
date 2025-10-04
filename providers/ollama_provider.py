@@ -48,7 +48,13 @@ class OllamaProvider(BaseAIProvider):
             response.raise_for_status()
 
             result = response.json()
-            return result.get('message', {}).get('content', '')
+            content = result.get('message', {}).get('content', '')
+            
+            # Ensure we have content
+            if not content:
+                raise Exception("Empty response from Ollama")
+            
+            return content
 
         except requests.exceptions.ConnectionError as exc:
             raise Exception(
