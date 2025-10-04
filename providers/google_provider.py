@@ -148,7 +148,19 @@ class GoogleProvider(BaseAIProvider):
                 generation_config=generation_config
             )
             
-            return response.text
+            # Extract text from response - handle different response structures
+            if hasattr(response, 'text'):
+                return response.text
+            elif hasattr(response, 'parts') and response.parts:
+                return ''.join(part.text for part in response.parts if hasattr(part, 'text'))
+            elif hasattr(response, 'candidates') and response.candidates:
+                # Try to extract from candidates structure
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    return ''.join(part.text for part in candidate.content.parts if hasattr(part, 'text'))
+            
+            # If we can't extract text, raise an error with the response structure
+            raise Exception(f"Could not extract text from response. Response type: {type(response)}, attributes: {dir(response)}")
         
         except Exception as e:
             raise Exception(f"Google API error: {str(e)}")
@@ -183,8 +195,15 @@ class GoogleProvider(BaseAIProvider):
             )
             
             for chunk in response:
-                if chunk.text:
-                    yield chunk.text
+                # Handle different chunk structures
+                text_content = None
+                if hasattr(chunk, 'text') and chunk.text:
+                    text_content = chunk.text
+                elif hasattr(chunk, 'parts') and chunk.parts:
+                    text_content = ''.join(part.text for part in chunk.parts if hasattr(part, 'text'))
+                
+                if text_content:
+                    yield text_content
         
         except Exception as e:
             raise Exception(f"Google API streaming error: {str(e)}")

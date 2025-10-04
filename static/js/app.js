@@ -354,8 +354,10 @@ class ConversationApp {
             });
 
             const data = await response.json();
+            console.log('Non-streaming API response:', data);
 
             if (data.status === 'success') {
+                console.log('Message from API:', data.message);
                 this.displayMessage(data.message);
                 this.updateNextModel(data.next_model);
                 this.updateTokenUsage(data.token_usage);
@@ -418,6 +420,7 @@ class ConversationApp {
                         if (data.type === 'metadata') {
                             currentModel = data.model;
                             timestamp = data.timestamp;
+                            console.log('Streaming metadata:', data);
 
                             streamingMessage.innerHTML = `
                                 <div class="message-header">
@@ -430,6 +433,8 @@ class ConversationApp {
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         } else if (data.type === 'content') {
                             fullContent += data.chunk;
+                            console.log('Streaming content chunk:', data.chunk);
+                            console.log('Full content so far:', fullContent);
                             const contentDiv = streamingMessage.querySelector('.message-content');
                             contentDiv.innerHTML = this.renderMarkdown(fullContent);
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -495,12 +500,17 @@ class ConversationApp {
     }
 
     displayMessage(message) {
+        console.log('displayMessage called with:', message);
+        console.log('Message content:', message.content);
+        
         const messagesContainer = document.getElementById('messages-container');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${message.role}`;
 
         const timestamp = new Date(message.timestamp).toLocaleString();
         const content = this.renderMarkdown(message.content);
+        
+        console.log('Rendered content:', content);
 
         let metaHtml = '';
         if (message.tokens_used || message.cost) {
@@ -531,19 +541,31 @@ class ConversationApp {
     }
 
     renderMarkdown(text) {
-        // Configure marked options
-        marked.setOptions({
-            highlight: function(code, lang) {
-                if (lang && Prism.languages[lang]) {
-                    return Prism.highlight(code, Prism.languages[lang], lang);
-                }
-                return code;
-            },
-            breaks: true,
-            gfm: true
-        });
+        // Handle undefined, null, or empty text
+        if (!text || text === '') {
+            console.warn('renderMarkdown: Empty or undefined text provided');
+            return '<p><em>No content</em></p>';
+        }
+        
+        try {
+            // Configure marked options
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && Prism.languages[lang]) {
+                        return Prism.highlight(code, Prism.languages[lang], lang);
+                    }
+                    return code;
+                },
+                breaks: true,
+                gfm: true
+            });
 
-        return marked.parse(text);
+            return marked.parse(text);
+        } catch (error) {
+            console.error('Error rendering markdown:', error);
+            // Fallback to plain text if markdown rendering fails
+            return `<p>${this.escapeHtml(text)}</p>`;
+        }
     }
 
     updateTokenUsage(tokenUsage) {
