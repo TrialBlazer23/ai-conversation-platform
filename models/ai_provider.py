@@ -4,12 +4,13 @@ AI Provider factory with enhanced provider support
 from providers.openai_provider import OpenAIProvider
 from providers.anthropic_provider import AnthropicProvider
 from providers.ollama_provider import OllamaProvider
+from providers.google_provider import GoogleProvider
 
 
 class AIProviderFactory:
     """
     Factory for creating AI provider instances
-    Enhanced with local model support
+    Enhanced with local model support and Google Gemini
     """
 
     @staticmethod
@@ -24,7 +25,7 @@ class AIProviderFactory:
         Create an AI provider instance
 
         Args:
-            provider_type: Type of provider ('openai', 'anthropic', 'ollama')
+            provider_type: Type of provider ('openai', 'anthropic', 'ollama', 'google')
             api_key: API key for the provider
             model: Model identifier
             temperature: Sampling temperature
@@ -42,21 +43,29 @@ class AIProviderFactory:
                 temperature=temperature,
                 system_prompt=system_prompt,
             )
-        if provider_type == 'anthropic':
+        elif provider_type == 'anthropic':
             return AnthropicProvider(
                 api_key=api_key,
                 model=model,
                 temperature=temperature,
                 system_prompt=system_prompt,
             )
-        if provider_type == 'ollama':
+        elif provider_type == 'google':
+            return GoogleProvider(
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+            )
+        elif provider_type == 'ollama':
             return OllamaProvider(
                 api_key=api_key,  # Not used, but maintains interface
                 model=model,
                 temperature=temperature,
                 system_prompt=system_prompt,
             )
-        raise ValueError(f"Unknown provider type: {provider_type}")
+        else:
+            raise ValueError(f"Unknown provider type: {provider_type}")
 
     @staticmethod
     def get_available_providers():
@@ -91,6 +100,18 @@ class AIProviderFactory:
                     'claude-3-haiku-20240307',
                     'claude-2.1',
                     'claude-2.0',
+                ],
+            },
+            {
+                'id': 'google',
+                'name': 'Google',
+                'requires_api_key': True,
+                'supports_streaming': True,
+                'models': [
+                    'gemini-1.5-pro',
+                    'gemini-1.5-flash',
+                    'gemini-pro',
+                    'gemini-pro-vision',
                 ],
             },
             {

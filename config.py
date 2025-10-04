@@ -48,6 +48,10 @@ class Config:
         'claude-3-haiku-20240307': 200000,
         'claude-2.1': 200000,
         'claude-2.0': 100000,
+        'gemini-1.5-pro': 1000000,
+        'gemini-1.5-flash': 1000000,
+        'gemini-pro': 32000,
+        'gemini-pro-vision': 16000,
         'default': 4096  # Fallback for unknown models
     }
     
@@ -59,6 +63,10 @@ class Config:
         'claude-3-opus-20240229': {'input': 0.015, 'output': 0.075},
         'claude-3-sonnet-20240229': {'input': 0.003, 'output': 0.015},
         'claude-3-haiku-20240307': {'input': 0.00025, 'output': 0.00125},
+        'gemini-1.5-pro': {'input': 0.00125, 'output': 0.00375},
+        'gemini-1.5-flash': {'input': 0.000125, 'output': 0.000375},
+        'gemini-pro': {'input': 0.00025, 'output': 0.00075},
+        'gemini-pro-vision': {'input': 0.00025, 'output': 0.00075},
         'default': {'input': 0.0, 'output': 0.0}  # Free for local models
     }
     

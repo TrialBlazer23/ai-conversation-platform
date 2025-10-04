@@ -28,6 +28,12 @@ class TokenCounter:
 
     def _get_encoding(self, model: str):
         """Get appropriate encoding for model"""
+        # Google models use different tokenization
+        if model.startswith('gemini'):
+            # Use cl100k_base as approximation for Gemini
+            # Google doesn't provide tiktoken encoding, so we estimate
+            return tiktoken.get_encoding("cl100k_base")
+        
         try:
             # Try to get model-specific encoding
             return tiktoken.encoding_for_model(model)
