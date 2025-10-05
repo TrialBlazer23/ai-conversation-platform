@@ -664,17 +664,6 @@ def list_conversations():
     })
 
 
-@app.route('/api/conversation/<conversation_id>', methods=['DELETE'])
-def delete_conversation(conversation_id):
-    """Delete a conversation"""
-    success = conversation_manager.delete_conversation(conversation_id)
-    
-    if success:
-        return jsonify({'status': 'success', 'message': 'Conversation deleted'})
-    else:
-        return jsonify({'status': 'error', 'message': 'Conversation not found'}), 404
-
-
 if __name__ == '__main__':
     # Ensure directories exist
     Config.init_app(app)
