@@ -229,7 +229,8 @@ class ConversationApp {
     async saveConfig() {
         const apiKeys = {
             openai: document.getElementById('openai-key').value,
-            anthropic: document.getElementById('anthropic-key').value
+            anthropic: document.getElementById('anthropic-key').value,
+            google: document.getElementById('google-key').value
         };
 
         const models = [];
@@ -275,6 +276,7 @@ class ConversationApp {
             if (config.api_keys) {
                 document.getElementById('openai-key').value = config.api_keys.openai || '';
                 document.getElementById('anthropic-key').value = config.api_keys.anthropic || '';
+                document.getElementById('google-key').value = config.api_keys.google || '';
             }
         } catch (error) {
             console.error('Error loading config:', error);
