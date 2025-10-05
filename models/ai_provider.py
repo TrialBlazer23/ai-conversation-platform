@@ -4,6 +4,8 @@ AI Provider factory with enhanced provider support
 from providers.openai_provider import OpenAIProvider
 from providers.anthropic_provider import AnthropicProvider
 from providers.ollama_provider import OllamaProvider
+from providers.gemini_provider import GeminiProvider
+from providers.vertex_ai_provider import VertexAIProvider
 
 
 class AIProviderFactory:
@@ -24,7 +26,7 @@ class AIProviderFactory:
         Create an AI provider instance
 
         Args:
-            provider_type: Type of provider ('openai', 'anthropic', 'ollama')
+            provider_type: Type of provider ('openai', 'anthropic', 'ollama', 'gemini', 'vertex_ai')
             api_key: API key for the provider
             model: Model identifier
             temperature: Sampling temperature
@@ -52,6 +54,20 @@ class AIProviderFactory:
         if provider_type == 'ollama':
             return OllamaProvider(
                 api_key=api_key,  # Not used, but maintains interface
+                model=model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+            )
+        if provider_type == 'gemini':
+            return GeminiProvider(
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+            )
+        if provider_type == 'vertex_ai':
+            return VertexAIProvider(
+                api_key=api_key,
                 model=model,
                 temperature=temperature,
                 system_prompt=system_prompt,
@@ -91,6 +107,30 @@ class AIProviderFactory:
                     'claude-3-haiku-20240307',
                     'claude-2.1',
                     'claude-2.0',
+                ],
+            },
+            {
+                'id': 'gemini',
+                'name': 'Google Gemini',
+                'requires_api_key': True,
+                'supports_streaming': True,
+                'models': [
+                    'gemini-pro',
+                    'gemini-pro-vision',
+                    'gemini-1.5-pro',
+                    'gemini-1.5-flash',
+                ],
+            },
+            {
+                'id': 'vertex_ai',
+                'name': 'Google Vertex AI',
+                'requires_api_key': True,
+                'supports_streaming': True,
+                'models': [
+                    'gemini-pro',
+                    'gemini-pro-vision',
+                    'gemini-1.5-pro',
+                    'gemini-1.5-flash',
                 ],
             },
             {
