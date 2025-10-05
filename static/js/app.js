@@ -45,6 +45,19 @@ class ConversationApp {
                 if (e.key === 'Enter') this.searchConversations();
             });
         }
+        
+        // Initialize UI enhancements
+        if (window.UIEnhancements) {
+            UIEnhancements.setupKeyboardShortcuts(this);
+            UIEnhancements.startTimestampUpdater();
+            UIEnhancements.setupApiKeyValidation();
+            UIEnhancements.addTooltips();
+            console.log('✨ UI Enhancements initialized');
+        }
+        
+        // Initialize response time tracker and model status indicator
+        this.responseTracker = new UIEnhancements.ResponseTimeTracker();
+        this.modelStatusIndicator = null; // Initialize when needed
     }
 
     async searchConversations() {

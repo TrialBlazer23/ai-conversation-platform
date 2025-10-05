@@ -35,6 +35,7 @@ class OpenAIProvider(BaseAIProvider):
                 model=self.model,
                 messages=api_messages,
                 temperature=self.temperature,
+                timeout=self.timeout,
             )
 
             return response.choices[0].message.content
@@ -59,6 +60,7 @@ class OpenAIProvider(BaseAIProvider):
                 messages=api_messages,
                 temperature=self.temperature,
                 stream=True,
+                timeout=self.timeout,
             )
 
             for chunk in stream:

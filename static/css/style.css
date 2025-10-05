@@ -1577,3 +1577,361 @@ body.dark-mode .history-date {
     }
 }
 
+
+/* ================================
+   UI Enhancements Styles
+   ================================ */
+
+/* Keyboard Shortcuts Overlay */
+.shortcuts-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s;
+}
+
+.shortcuts-help {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .shortcuts-help {
+    background: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.shortcuts-help h3 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    color: #333;
+}
+
+body.dark-mode .shortcuts-help h3 {
+    color: #e0e0e0;
+}
+
+.shortcut-list {
+    margin: 20px 0;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+
+body.dark-mode .shortcut-item {
+    border-bottom-color: #404040;
+}
+
+.shortcut-item:last-child {
+    border-bottom: none;
+}
+
+.shortcut-item kbd {
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: monospace;
+    font-size: 12px;
+    margin: 0 2px;
+}
+
+body.dark-mode .shortcut-item kbd {
+    background: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.shortcut-item span {
+    color: #666;
+    font-size: 14px;
+}
+
+body.dark-mode .shortcut-item span {
+    color: #aaa;
+}
+
+/* Response Time Display */
+.response-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+body.dark-mode .response-time {
+    background: #3a3a3a;
+    color: #aaa;
+}
+
+/* Model Status Indicators */
+.model-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+body.dark-mode .model-statuses {
+    background: #2d2d2d;
+}
+
+.model-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid #e0e0e0;
+}
+
+body.dark-mode .model-status {
+    background: #3a3a3a;
+    border-color: #505050;
+}
+
+.model-status-thinking {
+    animation: pulse 1.5s infinite;
+}
+
+.model-status-streaming {
+    animation: pulse 1s infinite;
+}
+
+.model-status-error {
+    border-color: #ff6b6b;
+}
+
+.status-icon {
+    font-size: 14px;
+}
+
+.model-name {
+    font-weight: 600;
+    color: #333;
+}
+
+body.dark-mode .model-name {
+    color: #e0e0e0;
+}
+
+.status-label {
+    color: #666;
+    font-size: 12px;
+}
+
+body.dark-mode .status-label {
+    color: #aaa;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin: 10px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #007acc;
+}
+
+body.dark-mode .typing-indicator {
+    background: #2d2d2d;
+}
+
+.typing-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.typing-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.typing-dots .dot {
+    width: 8px;
+    height: 8px;
+    background: #007acc;
+    border-radius: 50%;
+    animation: typingBounce 1.4s infinite both;
+}
+
+.typing-dots .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dots .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Provider Health Status */
+.provider-health {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+body.dark-mode .provider-health {
+    background: #2d2d2d;
+}
+
+.provider-health-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+body.dark-mode .provider-health-item {
+    background: #3a3a3a;
+    border-color: #505050;
+}
+
+.provider-health-item.healthy {
+    border-left: 3px solid #51cf66;
+}
+
+.provider-health-item.error {
+    border-left: 3px solid #ff6b6b;
+}
+
+.provider-health-item.warning {
+    border-left: 3px solid #ffd43b;
+}
+
+.health-icon {
+    font-size: 16px;
+}
+
+.provider-name {
+    font-weight: 600;
+    text-transform: capitalize;
+    min-width: 80px;
+}
+
+.health-message {
+    color: #666;
+    font-size: 13px;
+}
+
+body.dark-mode .health-message {
+    color: #aaa;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007acc;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Copy Button Enhanced */
+.copy-btn {
+    opacity: 0.6;
+    transition: all 0.2s;
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+    background: rgba(0, 122, 204, 0.1);
+    border-color: #007acc;
+}
+
+.copy-btn.copied {
+    background: rgba(81, 207, 102, 0.1);
+    border-color: #51cf66;
+    color: #51cf66;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* API Key Indicator */
+.key-indicator {
+    font-size: 12px;
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.key-indicator.valid {
+    color: #51cf66;
+    background: rgba(81, 207, 102, 0.1);
+}
+
+.key-indicator.warning {
+    color: #ffd43b;
+    background: rgba(255, 212, 59, 0.1);
+}

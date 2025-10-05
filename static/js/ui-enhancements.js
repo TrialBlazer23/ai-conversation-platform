@@ -99,6 +99,57 @@ function setupKeyboardShortcuts(app) {
             }
         }
         
+        // Ctrl/Cmd + ?: Show keyboard shortcuts help
+        if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+            e.preventDefault();
+            showKeyboardShortcutsHelp();
+        }
+    });
+}
+
+/**
+ * Show keyboard shortcuts help dialog
+ */
+function showKeyboardShortcutsHelp() {
+    const helpHtml = `
+        <div class="shortcuts-help">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <kbd>Ctrl/Cmd</kbd> + <kbd>Enter</kbd>
+                    <span>Generate next response</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl/Cmd</kbd> + <kbd>N</kbd>
+                    <span>New conversation</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl/Cmd</kbd> + <kbd>S</kbd>
+                    <span>Save configuration</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl/Cmd</kbd> + <kbd>E</kbd>
+                    <span>Export conversation</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl/Cmd</kbd> + <kbd>/</kbd>
+                    <span>Show this help</span>
+                </div>
+            </div>
+            <button onclick="this.closest('.shortcuts-help').remove()" class="btn btn-primary">Got it!</button>
+        </div>
+    `;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'shortcuts-overlay';
+    overlay.innerHTML = helpHtml;
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+    
+    document.body.appendChild(overlay);
+}
+        
         // Escape: Cancel auto mode if running
         if (e.key === 'Escape' && app.autoMode) {
             e.preventDefault();
@@ -224,13 +275,247 @@ function addTooltips() {
     });
 }
 
+/**
+ * Response time tracker
+ */
+class ResponseTimeTracker {
+    constructor() {
+        this.startTime = null;
+        this.endTime = null;
+    }
+    
+    start() {
+        this.startTime = performance.now();
+        this.endTime = null;
+    }
+    
+    stop() {
+        if (!this.startTime) return null;
+        this.endTime = performance.now();
+        return this.getElapsedTime();
+    }
+    
+    getElapsedTime() {
+        if (!this.startTime) return null;
+        const end = this.endTime || performance.now();
+        return ((end - this.startTime) / 1000).toFixed(2); // seconds
+    }
+    
+    reset() {
+        this.startTime = null;
+        this.endTime = null;
+    }
+}
+
+/**
+ * Display response time in UI
+ */
+function displayResponseTime(elementId, timeInSeconds) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const timeHtml = `
+        <span class="response-time">
+            ⏱️ ${timeInSeconds}s
+        </span>
+    `;
+    element.innerHTML = timeHtml;
+}
+
+/**
+ * Model status indicator
+ */
+class ModelStatusIndicator {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.statuses = new Map();
+    }
+    
+    setStatus(modelName, status) {
+        // status can be: 'idle', 'thinking', 'streaming', 'error'
+        this.statuses.set(modelName, status);
+        this.render();
+    }
+    
+    render() {
+        if (!this.container) return;
+        
+        const statusIcons = {
+            'idle': '⚪',
+            'thinking': '🟡',
+            'streaming': '🟢',
+            'error': '🔴'
+        };
+        
+        const statusLabels = {
+            'idle': 'Idle',
+            'thinking': 'Thinking...',
+            'streaming': 'Responding...',
+            'error': 'Error'
+        };
+        
+        let html = '<div class="model-statuses">';
+        this.statuses.forEach((status, modelName) => {
+            const icon = statusIcons[status] || '⚪';
+            const label = statusLabels[status] || 'Unknown';
+            html += `
+                <div class="model-status model-status-${status}">
+                    <span class="status-icon">${icon}</span>
+                    <span class="model-name">${modelName}</span>
+                    <span class="status-label">${label}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        this.container.innerHTML = html;
+    }
+    
+    clear() {
+        this.statuses.clear();
+        this.render();
+    }
+}
+
+/**
+ * Create typing indicator for a model
+ */
+function showTypingIndicator(modelName, container) {
+    const indicator = document.createElement('div');
+    indicator.className = 'typing-indicator';
+    indicator.id = `typing-${modelName}`;
+    indicator.innerHTML = `
+        <div class="typing-indicator-content">
+            <span class="model-name">${modelName}</span>
+            <span class="typing-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </span>
+        </div>
+    `;
+    
+    const messagesContainer = container || document.getElementById('messages-container');
+    if (messagesContainer) {
+        messagesContainer.appendChild(indicator);
+    }
+    
+    return indicator;
+}
+
+/**
+ * Remove typing indicator for a model
+ */
+function hideTypingIndicator(modelName) {
+    const indicator = document.getElementById(`typing-${modelName}`);
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+/**
+ * Export conversation handler
+ */
+async function exportConversation(conversationId, format = 'markdown') {
+    try {
+        const response = await fetch(`/api/conversation/${conversationId}/export/${format}`);
+        
+        if (format === 'json') {
+            const data = await response.json();
+            downloadJSON(data, `conversation_${conversationId}.json`);
+        } else {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `conversation_${conversationId}.${format === 'markdown' ? 'md' : 'txt'}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        notifications.show(`Conversation exported as ${format}`, 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        notifications.show('Failed to export conversation', 'error');
+    }
+}
+
+/**
+ * Download JSON data as file
+ */
+function downloadJSON(data, filename) {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Check provider health
+ */
+async function checkProviderHealth(apiKeys) {
+    try {
+        const response = await fetch('/api/health/providers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_keys: apiKeys })
+        });
+        
+        const result = await response.json();
+        return result.providers;
+    } catch (error) {
+        console.error('Health check error:', error);
+        return {};
+    }
+}
+
+/**
+ * Display provider health status
+ */
+function displayProviderHealth(healthResults) {
+    const container = document.getElementById('provider-health-status');
+    if (!container) return;
+    
+    let html = '<div class="provider-health">';
+    Object.entries(healthResults).forEach(([provider, result]) => {
+        const statusClass = result.status === 'healthy' ? 'healthy' : 
+                          result.status === 'error' ? 'error' : 'warning';
+        const icon = result.status === 'healthy' ? '✅' : 
+                    result.status === 'error' ? '❌' : '⚠️';
+        
+        html += `
+            <div class="provider-health-item ${statusClass}">
+                <span class="health-icon">${icon}</span>
+                <span class="provider-name">${provider}</span>
+                <span class="health-message">${result.message}</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
 // Export functions for use in app.js
 window.UIEnhancements = {
     formatTimeAgo,
     addCopyButton,
     setupKeyboardShortcuts,
+    showKeyboardShortcutsHelp,
     startTimestampUpdater,
     setButtonLoading,
     setupApiKeyValidation,
-    addTooltips
+    addTooltips,
+    ResponseTimeTracker,
+    displayResponseTime,
+    ModelStatusIndicator,
+    showTypingIndicator,
+    hideTypingIndicator,
+    exportConversation,
+    checkProviderHealth,
+    displayProviderHealth
 };
