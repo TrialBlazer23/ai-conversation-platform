@@ -1,12 +1,14 @@
 """
 Enhanced Flask application with streaming, database persistence, and advanced features
 """
-from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, session, Response, stream_with_context, g
 from flask_cors import CORS
 import json
 import os
+import time
 from datetime import datetime
 from pathlib import Path
+from functools import wraps
 
 from database import init_db, db
 from models.conversation import ConversationManager
@@ -25,6 +27,54 @@ init_db(app)
 
 # Initialize conversation manager
 conversation_manager = ConversationManager()
+
+
+# --- Middleware for Request Validation and Timing ---
+
+@app.before_request
+def before_request():
+    """Track request start time for response time measurement"""
+    g.start_time = time.time()
+
+
+@app.after_request
+def after_request(response):
+    """Add response time header and CORS headers"""
+    if hasattr(g, 'start_time'):
+        elapsed = time.time() - g.start_time
+        response.headers['X-Response-Time'] = f'{elapsed:.3f}s'
+    
+    # Additional security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    
+    return response
+
+
+def validate_json_request(required_fields=None):
+    """Decorator to validate JSON requests"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if not request.is_json:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Content-Type must be application/json'
+                }), 400
+            
+            if required_fields:
+                data = request.get_json()
+                missing_fields = [field for field in required_fields if field not in data]
+                if missing_fields:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Missing required fields: {", ".join(missing_fields)}'
+                    }), 400
+            
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 
 # --- Conversation Search/Filter Endpoint ---
 from database.models import Conversation, Message, ModelConfig
@@ -795,76 +845,37 @@ def clear_cache():
         }), 500
 
 
-@app.route('/api/conversation/<conversation_id>/export/<format>', methods=['GET'])
-def export_conversation(conversation_id, format):
-    """Export conversation in various formats"""
+@app.route('/api/conversation/<conversation_id>/export/text', methods=['GET'])
+def export_conversation_text(conversation_id):
+    """Export conversation to plain text format"""
     try:
         conv = Conversation.query.get(conversation_id)
         if not conv:
             return jsonify({'status': 'error', 'message': 'Conversation not found'}), 404
         
-        if format == 'json':
-            return jsonify({
-                'status': 'success',
-                'data': conv.to_dict()
-            })
+        text = f"{conv.display_title or 'Conversation'}\n"
+        text += f"Created: {conv.created_at}\n"
+        text += "=" * 80 + "\n\n"
         
-        elif format == 'markdown':
-            markdown = f"# {conv.display_title or 'Conversation'}\n\n"
-            markdown += f"**Created:** {conv.created_at}\n\n"
-            markdown += "---\n\n"
-            
-            for msg in conv.messages:
-                role = msg.role.upper()
-                model = f" ({msg.model_name})" if msg.model_name else ""
-                markdown += f"### {role}{model}\n\n"
-                markdown += f"{msg.content}\n\n"
-                if msg.tokens_used:
-                    markdown += f"*Tokens: {msg.tokens_used}*\n\n"
-                markdown += "---\n\n"
-            
-            markdown += f"\n**Total Tokens:** {conv.total_tokens}\n"
-            markdown += f"**Total Cost:** ${conv.total_cost:.4f}\n"
-            
-            return Response(
-                markdown,
-                mimetype='text/markdown',
-                headers={
-                    'Content-Disposition': f'attachment; filename=conversation_{conversation_id}.md'
-                }
-            )
+        for msg in conv.messages:
+            role = msg.role.upper()
+            model = f" ({msg.model_name})" if msg.model_name else ""
+            text += f"{role}{model}:\n"
+            text += f"{msg.content}\n"
+            if msg.tokens_used:
+                text += f"[Tokens: {msg.tokens_used}]\n"
+            text += "\n" + "-" * 80 + "\n\n"
         
-        elif format == 'text':
-            text = f"{conv.display_title or 'Conversation'}\n"
-            text += f"Created: {conv.created_at}\n"
-            text += "=" * 80 + "\n\n"
-            
-            for msg in conv.messages:
-                role = msg.role.upper()
-                model = f" ({msg.model_name})" if msg.model_name else ""
-                text += f"{role}{model}:\n"
-                text += f"{msg.content}\n"
-                if msg.tokens_used:
-                    text += f"[Tokens: {msg.tokens_used}]\n"
-                text += "\n" + "-" * 80 + "\n\n"
-            
-            text += f"\nTotal Tokens: {conv.total_tokens}\n"
-            text += f"Total Cost: ${conv.total_cost:.4f}\n"
-            
-            return Response(
-                text,
-                mimetype='text/plain',
-                headers={
-                    'Content-Disposition': f'attachment; filename=conversation_{conversation_id}.txt'
-                }
-            )
+        text += f"\nTotal Tokens: {conv.total_tokens}\n"
+        text += f"Total Cost: ${conv.total_cost:.4f}\n"
         
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': f'Unsupported format: {format}. Use json, markdown, or text'
-            }), 400
-            
+        return Response(
+            text,
+            mimetype='text/plain',
+            headers={
+                'Content-Disposition': f'attachment; filename=conversation_{conversation_id}.txt'
+            }
+        )
     except Exception as e:
         return jsonify({
             'status': 'error',
