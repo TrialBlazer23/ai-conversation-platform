@@ -30,7 +30,13 @@ class AnthropicProvider(BaseAIProvider):
                 messages=messages,
             )
 
-            return response.content[0].text
+            # Extract content with defensive checks
+            if response.content and len(response.content) > 0:
+                content = response.content[0].text
+                if content is not None:
+                    return content
+            
+            raise Exception("No content in Anthropic response")
 
         except Exception as exc:  # noqa: BLE001
             raise Exception(f"Anthropic API error: {exc}") from exc

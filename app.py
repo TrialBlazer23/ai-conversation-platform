@@ -143,6 +143,11 @@ def next_turn(conversation_id):
         # Generate response
         response = provider.generate_response(messages)
         
+        # Log the response for debugging
+        print(f"DEBUG: Generated response: {response}")
+        print(f"DEBUG: Response type: {type(response)}")
+        print(f"DEBUG: Response length: {len(response) if response else 0}")
+        
         # Count output tokens
         output_tokens = counter.count_tokens(response)
         
