@@ -5,6 +5,7 @@ from providers.openai_provider import OpenAIProvider
 from providers.anthropic_provider import AnthropicProvider
 from providers.ollama_provider import OllamaProvider
 from providers.google_provider import GoogleProvider
+from providers.cohere_provider import CohereProvider
 
 
 class AIProviderFactory:
@@ -52,6 +53,13 @@ class AIProviderFactory:
             )
         elif provider_type == 'google':
             return GoogleProvider(
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+            )
+        elif provider_type == 'cohere':
+            return CohereProvider(
                 api_key=api_key,
                 model=model,
                 temperature=temperature,
@@ -117,6 +125,18 @@ class AIProviderFactory:
                     'gemini-1.5-flash-latest',
                     'gemini-1.5-flash',
                     'gemini-1.5-flash-8b',
+                ],
+            },
+            {
+                'id': 'cohere',
+                'name': 'Cohere',
+                'requires_api_key': True,
+                'supports_streaming': True,
+                'models': [
+                    'command-r-plus',
+                    'command-r',
+                    'command',
+                    'command-light',
                 ],
             },
             {

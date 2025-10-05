@@ -664,6 +664,214 @@ def list_conversations():
     })
 
 
+@app.route('/api/health/providers', methods=['POST'])
+def check_providers_health():
+    """Check health status of AI providers"""
+    try:
+        api_keys = request.json.get('api_keys', {})
+        results = {}
+        
+        for provider_name, api_key in api_keys.items():
+            if not api_key:
+                results[provider_name] = {
+                    'status': 'not_configured',
+                    'message': 'API key not provided'
+                }
+                continue
+            
+            try:
+                # Quick validation check
+                if provider_name == 'openai':
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key, timeout=5.0)
+                    # Quick models list call
+                    client.models.list()
+                    results[provider_name] = {
+                        'status': 'healthy',
+                        'message': 'API key is valid'
+                    }
+                elif provider_name == 'anthropic':
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=api_key)
+                    # Note: Anthropic doesn't have a quick validation endpoint
+                    # We just check if the client can be created
+                    results[provider_name] = {
+                        'status': 'unknown',
+                        'message': 'API key format accepted (validation requires API call)'
+                    }
+                elif provider_name == 'google':
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    results[provider_name] = {
+                        'status': 'healthy',
+                        'message': 'API key configured'
+                    }
+                elif provider_name == 'cohere':
+                    import cohere
+                    client = cohere.Client(api_key=api_key)
+                    results[provider_name] = {
+                        'status': 'healthy',
+                        'message': 'API key configured'
+                    }
+                elif provider_name == 'ollama':
+                    import requests
+                    try:
+                        response = requests.get('http://localhost:11434/api/tags', timeout=2)
+                        if response.status_code == 200:
+                            results[provider_name] = {
+                                'status': 'healthy',
+                                'message': 'Ollama is running',
+                                'models': [m['name'] for m in response.json().get('models', [])]
+                            }
+                        else:
+                            results[provider_name] = {
+                                'status': 'unhealthy',
+                                'message': 'Ollama responded with error'
+                            }
+                    except Exception:
+                        results[provider_name] = {
+                            'status': 'unhealthy',
+                            'message': 'Ollama is not running'
+                        }
+                else:
+                    results[provider_name] = {
+                        'status': 'unknown',
+                        'message': 'Provider not supported for health check'
+                    }
+                    
+            except Exception as e:
+                results[provider_name] = {
+                    'status': 'error',
+                    'message': str(e)
+                }
+        
+        return jsonify({
+            'status': 'success',
+            'providers': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/cache/stats', methods=['GET'])
+def get_cache_stats():
+    """Get cache statistics"""
+    try:
+        from utils.cache import get_cache
+        cache = get_cache()
+        stats = cache.get_stats()
+        
+        return jsonify({
+            'status': 'success',
+            'cache': stats
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/cache/clear', methods=['POST'])
+def clear_cache():
+    """Clear the response cache"""
+    try:
+        from utils.cache import get_cache
+        cache = get_cache()
+        cache.clear()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Cache cleared successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/conversation/<conversation_id>/export/<format>', methods=['GET'])
+def export_conversation(conversation_id, format):
+    """Export conversation in various formats"""
+    try:
+        conv = Conversation.query.get(conversation_id)
+        if not conv:
+            return jsonify({'status': 'error', 'message': 'Conversation not found'}), 404
+        
+        if format == 'json':
+            return jsonify({
+                'status': 'success',
+                'data': conv.to_dict()
+            })
+        
+        elif format == 'markdown':
+            markdown = f"# {conv.display_title or 'Conversation'}\n\n"
+            markdown += f"**Created:** {conv.created_at}\n\n"
+            markdown += "---\n\n"
+            
+            for msg in conv.messages:
+                role = msg.role.upper()
+                model = f" ({msg.model_name})" if msg.model_name else ""
+                markdown += f"### {role}{model}\n\n"
+                markdown += f"{msg.content}\n\n"
+                if msg.tokens_used:
+                    markdown += f"*Tokens: {msg.tokens_used}*\n\n"
+                markdown += "---\n\n"
+            
+            markdown += f"\n**Total Tokens:** {conv.total_tokens}\n"
+            markdown += f"**Total Cost:** ${conv.total_cost:.4f}\n"
+            
+            return Response(
+                markdown,
+                mimetype='text/markdown',
+                headers={
+                    'Content-Disposition': f'attachment; filename=conversation_{conversation_id}.md'
+                }
+            )
+        
+        elif format == 'text':
+            text = f"{conv.display_title or 'Conversation'}\n"
+            text += f"Created: {conv.created_at}\n"
+            text += "=" * 80 + "\n\n"
+            
+            for msg in conv.messages:
+                role = msg.role.upper()
+                model = f" ({msg.model_name})" if msg.model_name else ""
+                text += f"{role}{model}:\n"
+                text += f"{msg.content}\n"
+                if msg.tokens_used:
+                    text += f"[Tokens: {msg.tokens_used}]\n"
+                text += "\n" + "-" * 80 + "\n\n"
+            
+            text += f"\nTotal Tokens: {conv.total_tokens}\n"
+            text += f"Total Cost: ${conv.total_cost:.4f}\n"
+            
+            return Response(
+                text,
+                mimetype='text/plain',
+                headers={
+                    'Content-Disposition': f'attachment; filename=conversation_{conversation_id}.txt'
+                }
+            )
+        
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Unsupported format: {format}. Use json, markdown, or text'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     # Ensure directories exist
     Config.init_app(app)

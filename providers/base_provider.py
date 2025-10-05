@@ -17,11 +17,13 @@ class BaseAIProvider(ABC):
         model: str,
         temperature: float = 0.7,
         system_prompt: str = '',
+        timeout: float = 60.0,
     ):
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
         self.system_prompt = system_prompt
+        self.timeout = timeout
         self.supports_streaming = False
 
     @abstractmethod
