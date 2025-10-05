@@ -261,10 +261,13 @@ class ConversationApp {
                 body: JSON.stringify(this.currentConfig)
             });
 
-            await response.json();
+            const result = await response.json();
             this.showStatus('Configuration saved successfully!', 'success');
+            return true; // Indicate success
         } catch (error) {
             this.showStatus('Error saving configuration', 'error');
+            console.error('Save config error:', error);
+            return false; // Indicate failure
         }
     }
 
@@ -291,15 +294,43 @@ class ConversationApp {
             return;
         }
 
-        if (this.currentConfig.models.length === 0) {
+        // Auto-save config before starting (build config from UI)
+        const models = [];
+        document.querySelectorAll('.model-config').forEach(modelDiv => {
+            const provider = modelDiv.querySelector('.model-provider').value;
+            const model = modelDiv.querySelector('.model-name').value;
+            const displayName = modelDiv.querySelector('.model-display-name').value;
+            const temperature = parseFloat(modelDiv.querySelector('.model-temperature').value);
+            const systemPrompt = modelDiv.querySelector('.model-system-prompt').value;
+
+            if (model) {
+                models.push({
+                    provider,
+                    model,
+                    name: displayName || model,
+                    temperature,
+                    system_prompt: systemPrompt
+                });
+            }
+        });
+
+        if (models.length === 0) {
             this.showStatus('Please configure at least one model', 'error');
             return;
         }
 
-        // Save config first
-        await this.saveConfig();
+        // Auto-save config
+        this.showStatus('Saving configuration...', 'loading');
+        const saved = await this.saveConfig();
+        
+        if (!saved) {
+            this.showStatus('Failed to save configuration', 'error');
+            return;
+        }
 
         try {
+            this.showStatus('Starting conversation...', 'loading');
+            
             const response = await fetch('/api/conversation/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -323,9 +354,12 @@ class ConversationApp {
                 this.updateNextModel(this.currentConfig.models[0].name);
                 this.showStatus('Conversation started - ready for first response', 'success');
                 this.updateConversationMeta();
+            } else {
+                this.showStatus(`Error: ${data.message || 'Failed to start conversation'}`, 'error');
             }
         } catch (error) {
             this.showStatus('Error starting conversation', 'error');
+            console.error('Start conversation error:', error);
         }
     }
 

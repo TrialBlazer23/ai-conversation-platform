@@ -166,69 +166,68 @@ class GoogleProvider(BaseAIProvider):
                 'x-goog-api-key': self.api_key
             }
             
+            print(f"DEBUG GOOGLE STREAM: Making request to {url}")
+            
             response = requests.post(url, headers=headers, json=payload, stream=True)
             response.raise_for_status()
             
-            # Process streaming response with a buffer to handle fragmented JSON
+            # Google's streaming response is a JSON array of objects
+            # Each line contains a complete JSON object
             buffer = ""
-            for chunk in response.iter_content(chunk_size=1024):
+            for chunk in response.iter_lines(decode_unicode=True):
                 if chunk:
-                    buffer += chunk.decode('utf-8')
+                    # Add to buffer
+                    buffer += chunk
                     
-                    # The stream is a JSON array, so we need to handle it carefully.
-                    # The individual items in the array are JSON objects.
-                    # Let's find the boundaries of these objects.
+                    # Try to extract and parse JSON objects from the buffer
+                    # Remove leading characters like '[', ',', whitespace
+                    buffer = buffer.lstrip('[\n\r\t, ')
                     
-                    # Clean up the start of the buffer
-                    buffer = buffer.lstrip('[\n ,')
-
-                    while '}' in buffer:
-                        try:
-                            # Find the end of the first JSON object
-                            end_of_object = buffer.find('}') + 1
-                            json_str = buffer[:end_of_object]
-                            
-                            # Find the actual end of the object by balancing braces
-                            open_braces = json_str.count('{')
-                            close_braces = json_str.count('}')
-                            
-                            search_offset = end_of_object
-                            while open_braces > close_braces and search_offset < len(buffer):
-                                next_brace = buffer.find('}', search_offset)
-                                if next_brace != -1:
-                                    end_of_object = next_brace + 1
-                                    json_str = buffer[:end_of_object]
-                                    close_braces += 1
-                                    search_offset = end_of_object
-                                else:
-                                    # Not enough data for a full object, break to get more
+                    # Try to find a complete JSON object
+                    if buffer.startswith('{'):
+                        # Find matching closing brace
+                        brace_count = 0
+                        end_pos = -1
+                        
+                        for i, char in enumerate(buffer):
+                            if char == '{':
+                                brace_count += 1
+                            elif char == '}':
+                                brace_count -= 1
+                                if brace_count == 0:
+                                    end_pos = i + 1
                                     break
-                            
-                            if open_braces > close_braces:
-                                # Still not a complete object in buffer
-                                break
-
-                            chunk_data = json.loads(json_str)
-                            
-                            if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
-                                candidate = chunk_data['candidates'][0]
-                                if 'content' in candidate and 'parts' in candidate['content']:
-                                    for part in candidate['content']['parts']:
-                                        if 'text' in part:
-                                            yield part['text']
-                            
-                            # Move buffer past the processed object
-                            buffer = buffer[end_of_object:]
-                            # Clean up for next object
-                            buffer = buffer.lstrip(',\n ')
-
-                        except json.JSONDecodeError:
-                            # Incomplete JSON object in buffer, need more data
-                            break
+                        
+                        if end_pos > 0:
+                            # We have a complete JSON object
+                            json_str = buffer[:end_pos]
+                            try:
+                                chunk_data = json.loads(json_str)
+                                
+                                print(f"DEBUG GOOGLE STREAM: Parsed chunk: {json.dumps(chunk_data, indent=2)[:200]}")
+                                
+                                if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
+                                    candidate = chunk_data['candidates'][0]
+                                    if 'content' in candidate and 'parts' in candidate['content']:
+                                        for part in candidate['content']['parts']:
+                                            if 'text' in part:
+                                                text = part['text']
+                                                print(f"DEBUG GOOGLE STREAM: Yielding text: {text[:100]}")
+                                                yield text
+                                
+                                # Remove processed object from buffer
+                                buffer = buffer[end_pos:]
+                                
+                            except json.JSONDecodeError as e:
+                                print(f"DEBUG GOOGLE STREAM: JSON decode error: {e}")
+                                # Keep buffer as is and wait for more data
+                                pass
         
         except requests.exceptions.RequestException as e:
+            print(f"DEBUG GOOGLE STREAM: Request error: {str(e)}")
             raise Exception(f"Google API streaming request error: {str(e)}")
         except Exception as e:
+            print(f"DEBUG GOOGLE STREAM: General error: {str(e)}")
             raise Exception(f"Google API streaming error: {str(e)}")
     
     @staticmethod
