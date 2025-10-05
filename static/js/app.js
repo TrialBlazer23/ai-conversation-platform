@@ -15,17 +15,118 @@ class ConversationApp {
         this.providers = [];
         this.templates = [];
         this.tokenUsage = null;
+        this.autoSaveEnabled = true;
+        this.autoSaveTimeout = null;
 
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
+        this.setupKeyboardShortcuts();
         await this.loadProviders();
         await this.loadTemplates();
         await this.checkOllamaStatus();
         this.loadConfig();
         this.addModelConfig(); // Add first model by default
+        this.showWelcomeMessage();
+    }
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Enter or Cmd+Enter: Start conversation or next turn
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (this.conversationId) {
+                    this.nextTurn();
+                } else {
+                    this.startConversation();
+                }
+            }
+            
+            // Ctrl+N or Cmd+N: New conversation
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                this.newConversation();
+            }
+            
+            // Ctrl+S or Cmd+S: Save configuration
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this.saveConfig();
+            }
+            
+            // Ctrl+E or Cmd+E: Export conversation
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                if (this.conversationId) {
+                    this.exportConversation();
+                }
+            }
+
+            // Escape: Cancel auto mode or close modals
+            if (e.key === 'Escape') {
+                if (this.autoMode) {
+                    this.toggleAutoMode();
+                }
+            }
+
+            // Show keyboard shortcuts with ?
+            if (e.shiftKey && e.key === '?') {
+                e.preventDefault();
+                this.showKeyboardShortcuts();
+            }
+        });
+    }
+
+    showWelcomeMessage() {
+        const welcomeKey = 'ai-conversation-welcome-shown';
+        if (!localStorage.getItem(welcomeKey)) {
+            setTimeout(() => {
+                this.showStatus('💡 Tip: Press Shift+? to see keyboard shortcuts', 'info', 5000);
+                localStorage.setItem(welcomeKey, 'true');
+            }, 1000);
+        }
+    }
+
+    showKeyboardShortcuts() {
+        const shortcuts = [
+            { keys: 'Ctrl/Cmd + Enter', action: 'Start conversation or next turn' },
+            { keys: 'Ctrl/Cmd + N', action: 'New conversation' },
+            { keys: 'Ctrl/Cmd + S', action: 'Save configuration' },
+            { keys: 'Ctrl/Cmd + E', action: 'Export conversation' },
+            { keys: 'Escape', action: 'Stop auto mode' },
+            { keys: 'Shift + ?', action: 'Show this help' }
+        ];
+
+        const helpHtml = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: var(--bg-dark); border: 2px solid var(--border-color); 
+                        border-radius: 8px; padding: 20px; z-index: 10000; max-width: 500px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <h3 style="margin-top: 0; color: var(--primary-color);">⌨️ Keyboard Shortcuts</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    ${shortcuts.map(s => `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 8px; font-family: monospace; color: var(--accent-color);">${s.keys}</td>
+                            <td style="padding: 8px; color: var(--text-color);">${s.action}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+                <button onclick="this.parentElement.remove()" 
+                        style="margin-top: 15px; padding: 8px 16px; background: var(--primary-color); 
+                               border: none; border-radius: 4px; color: white; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+            <div onclick="this.nextElementSibling.remove(); this.remove();" 
+                 style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                        background: rgba(0,0,0,0.5); z-index: 9999;"></div>
+        `;
+
+        const helpDiv = document.createElement('div');
+        helpDiv.innerHTML = helpHtml;
+        document.body.appendChild(helpDiv);
     }
 
     setupEventListeners() {
@@ -49,6 +150,28 @@ class ConversationApp {
 
         // Initial prompt character counter
         document.getElementById('initial-prompt').addEventListener('input', (e) => this.updatePromptStats(e.target.value));
+
+        // Auto-save on configuration changes
+        ['openai-key', 'anthropic-key', 'google-key'].forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) {
+                elem.addEventListener('input', () => this.scheduleAutoSave());
+            }
+        });
+    }
+
+    scheduleAutoSave() {
+        if (!this.autoSaveEnabled) return;
+        
+        // Clear existing timeout
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+        }
+        
+        // Schedule auto-save after 2 seconds of inactivity
+        this.autoSaveTimeout = setTimeout(() => {
+            this.saveConfig(true); // true = silent save
+        }, 2000);
     }
 
     async loadProviders() {
@@ -226,7 +349,7 @@ class ConversationApp {
         statsEl.style.marginTop = '5px';
     }
 
-    async saveConfig() {
+    async saveConfig(silent = false) {
         const apiKeys = {
             openai: document.getElementById('openai-key').value,
             anthropic: document.getElementById('anthropic-key').value,
@@ -252,6 +375,23 @@ class ConversationApp {
             }
         });
 
+        // Validation
+        if (models.length === 0) {
+            if (!silent) {
+                this.showStatus('⚠️ Please add at least one model', 'error');
+            }
+            return false;
+        }
+
+        // Check if API keys are provided for selected providers
+        const usedProviders = [...new Set(models.map(m => m.provider))];
+        const missingKeys = usedProviders.filter(p => p !== 'ollama' && !apiKeys[p]);
+        
+        if (missingKeys.length > 0 && !silent) {
+            this.showStatus(`⚠️ Missing API keys for: ${missingKeys.join(', ')}`, 'error');
+            return false;
+        }
+
         this.currentConfig = { api_keys: apiKeys, models };
 
         try {
@@ -261,10 +401,18 @@ class ConversationApp {
                 body: JSON.stringify(this.currentConfig)
             });
 
-            await response.json();
-            this.showStatus('Configuration saved successfully!', 'success');
+            const result = await response.json();
+            
+            if (!silent) {
+                this.showStatus('✅ Configuration saved successfully!', 'success');
+            }
+            return true;
         } catch (error) {
-            this.showStatus('Error saving configuration', 'error');
+            if (!silent) {
+                this.showStatus('❌ Error saving configuration. Please try again.', 'error');
+            }
+            console.error('Save config error:', error);
+            return false;
         }
     }
 
@@ -287,17 +435,52 @@ class ConversationApp {
         const initialPrompt = document.getElementById('initial-prompt').value.trim();
 
         if (!initialPrompt) {
-            this.showStatus('Please enter an initial prompt', 'error');
+            this.showStatus('⚠️ Please enter an initial prompt to start the conversation', 'error');
+            document.getElementById('initial-prompt').focus();
             return;
         }
 
-        if (this.currentConfig.models.length === 0) {
-            this.showStatus('Please configure at least one model', 'error');
+        // Validate prompt length
+        if (initialPrompt.length < 10) {
+            this.showStatus('⚠️ Initial prompt is too short. Please provide more detail.', 'error');
             return;
         }
 
-        // Save config first
-        await this.saveConfig();
+        // Build models list from UI
+        const models = [];
+        document.querySelectorAll('.model-config').forEach(modelDiv => {
+            const provider = modelDiv.querySelector('.model-provider').value;
+            const model = modelDiv.querySelector('.model-name').value;
+            const displayName = modelDiv.querySelector('.model-display-name').value;
+            const temperature = parseFloat(modelDiv.querySelector('.model-temperature').value);
+            const systemPrompt = modelDiv.querySelector('.model-system-prompt').value;
+
+            if (model) {
+                models.push({
+                    provider,
+                    model,
+                    name: displayName || model,
+                    temperature,
+                    system_prompt: systemPrompt
+                });
+            }
+        });
+
+        if (models.length === 0) {
+            this.showStatus('⚠️ Please configure at least one model before starting', 'error');
+            return;
+        }
+
+        // Show estimated cost
+        const estimatedTokens = Math.ceil(initialPrompt.length / 4); // rough estimate
+        this.showStatus(`🚀 Starting conversation... (estimated ~${estimatedTokens} tokens)`, 'loading');
+
+        // Auto-save configuration before starting
+        const saved = await this.saveConfig(true);
+        if (!saved) {
+            this.showStatus('⚠️ Please fix configuration errors before starting', 'error');
+            return;
+        }
 
         try {
             const response = await fetch('/api/conversation/start', {
@@ -305,7 +488,7 @@ class ConversationApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     initial_prompt: initialPrompt,
-                    models: this.currentConfig.models
+                    models: models
                 })
             });
 
@@ -313,6 +496,7 @@ class ConversationApp {
 
             if (data.status === 'success') {
                 this.conversationId = data.conversation_id;
+                this.currentConfig.models = models; // Update current config
                 this.showConversationPanel();
                 this.displayMessage({
                     role: 'user',
@@ -320,12 +504,15 @@ class ConversationApp {
                     model: 'You',
                     timestamp: new Date().toISOString()
                 });
-                this.updateNextModel(this.currentConfig.models[0].name);
-                this.showStatus('Conversation started - ready for first response', 'success');
+                this.updateNextModel(models[0].name);
+                this.showStatus('✅ Conversation started! Ready for first response.', 'success');
                 this.updateConversationMeta();
+            } else {
+                this.showStatus(`❌ Error: ${data.message || 'Failed to start conversation'}`, 'error');
             }
         } catch (error) {
-            this.showStatus('Error starting conversation', 'error');
+            console.error('Start conversation error:', error);
+            this.showStatus('❌ Error starting conversation. Please check your configuration and try again.', 'error');
         }
     }
 
@@ -490,9 +677,18 @@ class ConversationApp {
                 }
             }
         } catch (error) {
-            this.showStatus('Error streaming response', 'error');
-            console.error(error);
+            this.showStatus('❌ Error streaming response. Check console for details.', 'error');
+            console.error('Streaming error:', error);
             streamingMessage.remove();
+            
+            // Provide recovery suggestion
+            setTimeout(() => {
+                const retry = confirm('Streaming failed. Would you like to try again with streaming disabled?');
+                if (retry && this.streamingEnabled) {
+                    this.toggleStreaming();
+                    this.nextTurn(editedMessage);
+                }
+            }, 1000);
         } finally {
             this.setButtonsDisabled(false);
         }
@@ -664,6 +860,12 @@ class ConversationApp {
     }
 
     newConversation() {
+        // Confirm if there's an active conversation
+        if (this.conversationId) {
+            const confirmed = confirm('Start a new conversation? Current conversation will remain saved but you\'ll need to export it if you want to keep it.');
+            if (!confirmed) return;
+        }
+
         if (this.autoMode) {
             this.toggleAutoMode();
         }
@@ -677,7 +879,7 @@ class ConversationApp {
         document.getElementById('total-cost').textContent = '0.00';
         document.getElementById('config-panel').style.display = 'block';
         document.getElementById('conversation-panel').style.display = 'none';
-        this.showStatus('Ready for new conversation', 'success');
+        this.showStatus('✨ Ready for new conversation', 'success');
     }
 
     showConversationPanel() {
@@ -705,7 +907,7 @@ class ConversationApp {
         document.getElementById('edit-message').value = '';
     }
 
-    showStatus(message, type = 'info') {
+    showStatus(message, type = 'info', duration = 0) {
         const statusText = document.getElementById('status-text');
         const statusBar = document.getElementById('status-bar');
 
@@ -718,19 +920,33 @@ class ConversationApp {
         switch(type) {
             case 'success':
                 statusText.style.color = 'var(--success-color)';
+                if (duration === 0) duration = 3000; // Auto-dismiss success after 3s
                 break;
             case 'error':
                 statusText.style.color = 'var(--danger-color)';
+                if (duration === 0) duration = 5000; // Keep errors longer
                 break;
             case 'warning':
                 statusText.style.color = 'var(--warning-color)';
+                if (duration === 0) duration = 4000;
                 break;
             case 'loading':
                 statusText.style.color = 'var(--primary-color)';
-                statusText.innerHTML = message + ' <span class="loading-spinner"></span>';
+                statusText.innerHTML = message + ' <span class="loading-spinner">⏳</span>';
                 break;
             default:
                 statusText.style.color = 'var(--text-secondary)';
+                if (duration === 0) duration = 3000;
+        }
+
+        // Auto-dismiss if duration is set
+        if (duration > 0 && type !== 'loading') {
+            setTimeout(() => {
+                if (statusText.innerHTML === message) {
+                    statusText.innerHTML = 'Ready';
+                    statusText.style.color = 'var(--text-secondary)';
+                }
+            }, duration);
         }
     }
 

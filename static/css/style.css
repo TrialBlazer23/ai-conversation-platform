@@ -842,3 +842,123 @@ textarea {
 .text-warning {
     color: var(--warning-color);
 }
+
+/* Help Text and Tooltips */
+.help-text {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 0.85em;
+    color: var(--info-color);
+    cursor: help;
+    transition: var(--transition-fast);
+}
+
+.help-text:hover {
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+/* Focus States for Accessibility */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Skip to main content link for accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px;
+    z-index: 100;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* Loading Spinner Animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+/* Smooth transitions for status messages */
+#status-bar {
+    transition: all var(--transition-normal);
+}
+
+/* Improved button hover states */
+.btn {
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* Improved form field styles */
+input[type="password"]::-ms-reveal {
+    filter: invert(1);
+}
+
+/* Better scrollbar for messages */
+.messages::-webkit-scrollbar {
+    width: 8px;
+}
+
+.messages::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: var(--radius-sm);
+}
+
+.messages::-webkit-scrollbar-thumb {
+    background: var(--panel-border);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Pulse animation for status indicators */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-indicator.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
