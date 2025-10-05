@@ -48,6 +48,21 @@ class Config:
         'claude-3-haiku-20240307': 200000,
         'claude-2.1': 200000,
         'claude-2.0': 100000,
+        # Gemini 2.5 models (latest)
+        'gemini-2.5-pro': 2000000,
+        # Gemini 2.0 models (latest as of Dec 2024)
+        'gemini-2.0-flash-exp': 1000000,
+        'gemini-exp-1206': 2000000,
+        'gemini-2.0-flash-thinking-exp-1219': 1000000,
+        # Gemini 1.5 models
+        'gemini-1.5-pro-latest': 2000000,
+        'gemini-1.5-pro': 2000000,
+        'gemini-1.5-flash-latest': 1000000,
+        'gemini-1.5-flash': 1000000,
+        'gemini-1.5-flash-8b': 1000000,
+        # Legacy Gemini models
+        'gemini-pro': 32000,
+        'gemini-pro-vision': 16000,
         'default': 4096  # Fallback for unknown models
     }
     
@@ -59,6 +74,21 @@ class Config:
         'claude-3-opus-20240229': {'input': 0.015, 'output': 0.075},
         'claude-3-sonnet-20240229': {'input': 0.003, 'output': 0.015},
         'claude-3-haiku-20240307': {'input': 0.00025, 'output': 0.00125},
+        # Gemini 2.5 models (latest flagship)
+        'gemini-2.5-pro': {'input': 0.00125, 'output': 0.005},
+        # Gemini 2.0 models (Dec 2024 pricing - experimental models may be free during preview)
+        'gemini-2.0-flash-exp': {'input': 0.0, 'output': 0.0},  # Free during preview
+        'gemini-exp-1206': {'input': 0.0, 'output': 0.0},  # Free during preview
+        'gemini-2.0-flash-thinking-exp-1219': {'input': 0.0, 'output': 0.0},  # Free during preview
+        # Gemini 1.5 models (production pricing)
+        'gemini-1.5-pro-latest': {'input': 0.00125, 'output': 0.005},
+        'gemini-1.5-pro': {'input': 0.00125, 'output': 0.005},
+        'gemini-1.5-flash-latest': {'input': 0.000075, 'output': 0.0003},
+        'gemini-1.5-flash': {'input': 0.000075, 'output': 0.0003},
+        'gemini-1.5-flash-8b': {'input': 0.0000375, 'output': 0.00015},
+        # Legacy Gemini models
+        'gemini-pro': {'input': 0.00025, 'output': 0.00075},
+        'gemini-pro-vision': {'input': 0.00025, 'output': 0.00075},
         'default': {'input': 0.0, 'output': 0.0}  # Free for local models
     }
     

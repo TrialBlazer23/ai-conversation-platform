@@ -1,0 +1,21 @@
+{
+  "name": "Google Gemini Test",
+  "description": "Test conversation using Google Gemini models",
+  "initial_prompt": "Compare the benefits of serverless vs container-based deployments. Provide a balanced technical analysis.",
+  "models": [
+    {
+      "provider": "google",
+      "model": "gemini-1.5-flash",
+      "name": "Gemini Flash (Speed)",
+      "temperature": 0.7,
+      "system_prompt": "You are a cloud architecture expert focused on serverless architectures and FaaS platforms."
+    },
+    {
+      "provider": "google",
+      "model": "gemini-1.5-pro",
+      "name": "Gemini Pro (Depth)",
+      "temperature": 0.7,
+      "system_prompt": "You are a cloud architecture expert with deep knowledge of container orchestration and Kubernetes."
+    }
+  ]
+}

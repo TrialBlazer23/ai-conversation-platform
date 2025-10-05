@@ -16,6 +16,14 @@ A powerful local web application for orchestrating multi-model AI conversations 
 - ⚡ **Real-Time Streaming**: See AI responses token-by-token as they're generated
 - 💾 **Database Persistence**: SQLite-based conversation history and management
 
+### Conversation Management (Phase 2 - NEW! 🎉)
+- 🔍 **Advanced Search**: Search conversations by content, model, date, tokens, or cost
+- 📤 **Flexible Export**: Export conversations as Markdown or JSON
+- ⭐ **Favorites**: Mark and organize important conversations
+- 📝 **Custom Titles**: Edit conversation titles for better organization
+- 📋 **Duplication**: Clone conversations with full configuration
+- 🌙 **Auto Dark Mode**: Automatic detection of system color scheme preference
+
 ### Intelligence & Control
 - 🏠 **Local Model Support**: Run models locally via Ollama (zero cost, full privacy)
 - 🎯 **Token Management**: Real-time token counting with visual progress bars
@@ -26,6 +34,7 @@ A powerful local web application for orchestrating multi-model AI conversations 
 ### Provider Support
 - ✅ **OpenAI** (GPT-4, GPT-4-turbo, GPT-3.5-turbo)
 - ✅ **Anthropic** (Claude 3 Opus, Sonnet, Haiku, Claude 2)
+- ✅ **Google** (Gemini Pro, Gemini 1.5 Pro/Flash)
 - ✅ **Ollama** (Llama 2, Mistral, CodeLlama, Neural Chat, Phi, and more)
 
 ### Developer-Friendly
@@ -144,7 +153,41 @@ Model 2: Claude 3 Opus (Critical Analyst)
 - **Streaming ON**: See responses token-by-token as they're generated (exciting!)
 - **Streaming OFF**: Wait for complete response (faster for slower connections)
 
-### 4. Advanced Features
+### 4. Conversation Management (Phase 2)
+
+#### Search Conversations
+1. Use the **Search** panel to find conversations
+2. Enter keywords or use advanced filters:
+   - Filter by model name
+   - Set date ranges
+   - Filter by token count or cost
+3. Sort results by date, tokens, or cost
+4. Click on any result to view details
+
+#### Export Conversations
+1. Find the conversation in search results
+2. Click **"Export"** button
+3. Choose format:
+   - **Markdown**: Human-readable, formatted text
+   - **JSON**: Complete data with metadata
+4. File downloads automatically
+
+#### Organize with Favorites
+- Click the **★** star icon to mark conversations as favorites
+- Quickly identify important conversations
+- Filter by favorites (coming soon)
+
+#### Edit Conversation Titles
+- Click any conversation title to edit
+- Press **Enter** to save or **Escape** to cancel
+- Custom titles make conversations easier to find
+
+#### Duplicate Conversations
+- Click **"Duplicate"** to clone a conversation
+- Preserves all model configurations
+- Start fresh with the same setup
+
+### 5. Advanced Features
 
 #### Token Management
 - Real-time token counter shows context window usage
@@ -155,11 +198,6 @@ Model 2: Claude 3 Opus (Critical Analyst)
 - Per-message cost calculation
 - Running total for conversation
 - Header shows aggregate statistics
-
-#### Export Conversations
-- Click **"Export"** to download conversation as JSON
-- Includes all messages, metadata, tokens, and costs
-- Import later for analysis or archival
 
 ---
 
@@ -301,31 +339,66 @@ Create a JSON file in `templates_config/`:
 
 ---
 
-## 🎯 Use Cases
+## 🎯 Use Cases & Templates
 
-### Debate & Analysis
-Configure two models with opposing viewpoints to debate topics:
+### 📋 Available Templates
+
+#### 1. **Business Planner** ⭐ NEW
+Four AI business experts collaborate to develop comprehensive business plans:
+- **Innovation Strategist**: Generates creative business ideas and market opportunities
+- **Financial Analyst**: Evaluates financial viability, revenue models, and ROI
+- **Operations Planner**: Creates executable implementation plans and workflows
+- **Market Researcher**: Analyzes target markets, competition, and trends
+
+Perfect for: Business idea validation, startup planning, market entry strategies
+
+#### 2. **Program Developer** ⭐ NEW
+Four AI developers collaborate to build complete, production-ready programs:
+- **Software Architect**: Designs system architecture and technology stack
+- **Full-Stack Developer**: Implements features with complete, working code
+- **Code Reviewer & Optimizer**: Reviews for bugs, security, and performance
+- **Testing & Documentation Specialist**: Creates test suites and documentation
+
+Perfect for: Building apps from scratch, code generation, automated development
+
+#### 3. **Brainstorm Mode**
+Three AI models collaborate on creative idea generation:
+- Creative explorer, practical analyst, and synthesizer perspectives
+- High creativity with feasibility grounding
+
+#### 4. **Code Review**
+Security and performance-focused code review:
+- Identifies vulnerabilities, optimization opportunities, and best practices
+
+#### 5. **Debate Mode**
+Structured debates with opposing viewpoints:
+- Logical arguments and counterarguments on any topic
+
+#### 6. **AI Tutor**
+Socratic teaching method with examples:
+- Guides learning through questions and real-world examples
+
+### 💡 Example Use Cases
+
+#### Business Planning
 ```
-Model 1: Pro position (temperature: 0.6)
-Model 2: Con position (temperature: 0.6)
-Initial: "Should AI development be regulated?"
+Template: Business Planner
+Prompt: "Create a business plan for a sustainable fashion rental service targeting millennials"
+Result: Complete plan with market analysis, financials, operations, and go-to-market strategy
 ```
 
-### Creative Brainstorming
-Multiple models with high creativity collaborate:
+#### Program Development
 ```
-Model 1: Creative explorer (temperature: 0.9)
-Model 2: Practical analyst (temperature: 0.5)
-Model 3: Synthesizer (temperature: 0.7)
-Initial: "New product ideas for eco-friendly tech"
+Template: Program Developer
+Prompt: "Build a Python CLI tool for automated backup management with cloud integration"
+Result: Full implementation with architecture, code, tests, and documentation
 ```
 
-### Code Review
-Different models focus on different aspects:
+#### Creative Brainstorming
 ```
-Model 1: Security reviewer (temperature: 0.3)
-Model 2: Performance reviewer (temperature: 0.3)
-Initial: [Paste your code]
+Template: Brainstorm Mode
+Prompt: "New product ideas for eco-friendly tech"
+Result: Novel ideas evaluated for feasibility and synthesized into concepts
 ```
 
 ### Educational Tutoring

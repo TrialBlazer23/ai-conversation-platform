@@ -1,0 +1,21 @@
+{
+  "name": "AI Tutor",
+  "description": "Socratic teaching method with multiple perspectives",
+  "initial_prompt": "I want to learn about: [TOPIC]. Please teach me using the Socratic method, asking questions and building on my understanding.",
+  "models": [
+    {
+      "provider": "google",
+      "model": "gemini-2.0-flash-exp",
+      "name": "Primary Tutor",
+      "temperature": 0.7,
+      "system_prompt": "You are a Socratic tutor. Ask thought-provoking questions that guide the student to discover concepts themselves. Provide hints and explanations when needed, but encourage active thinking."
+    },
+    {
+      "provider": "google",
+      "model": "gemini-2.0-flash-exp",
+      "name": "Examples Provider",
+      "temperature": 0.6,
+      "system_prompt": "You are a teaching assistant who provides concrete examples and analogies. When the primary tutor asks questions, you can offer real-world examples that illustrate the concepts being discussed."
+    }
+  ]
+}
