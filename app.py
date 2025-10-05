@@ -143,6 +143,11 @@ def next_turn(conversation_id):
         # Generate response
         response = provider.generate_response(messages)
         
+        # Debug: Log the response
+        print(f"DEBUG: Generated response type: {type(response)}")
+        print(f"DEBUG: Generated response length: {len(response) if response else 0}")
+        print(f"DEBUG: Generated response preview: {response[:200] if response else 'None'}")
+        
         # Count output tokens
         output_tokens = counter.count_tokens(response)
         
@@ -170,7 +175,7 @@ def next_turn(conversation_id):
         # Get token usage
         token_usage = conversation_manager.get_token_usage(conversation_id)
         
-        return jsonify({
+        response_data = {
             'status': 'success',
             'message': {
                 'role': 'assistant',
@@ -182,7 +187,12 @@ def next_turn(conversation_id):
             },
             'next_model': model_configs[next_model_idx].get('name', model_configs[next_model_idx].get('model')),
             'token_usage': token_usage
-        })
+        }
+        
+        # Debug: Log the response data
+        print(f"DEBUG: Response data: {json.dumps(response_data, indent=2)}")
+        
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -240,7 +250,11 @@ def next_turn_stream(conversation_id):
             full_response = ""
             for chunk in provider.generate_response_stream(messages):
                 full_response += chunk
+                print(f"DEBUG STREAM: Chunk received: {chunk[:50]}")
                 yield f"data: {json.dumps({'type': 'content', 'chunk': chunk})}\n\n"
+            
+            print(f"DEBUG STREAM: Full response length: {len(full_response)}")
+            print(f"DEBUG STREAM: Full response preview: {full_response[:200]}")
             
             # Count output tokens
             output_tokens = counter.count_tokens(full_response)

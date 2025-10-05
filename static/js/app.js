@@ -401,67 +401,91 @@ class ConversationApp {
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let buffer = '';
 
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                    if (buffer.length > 0) {
+                        // Process any remaining data in the buffer
+                        processChunk(buffer);
+                    }
+                    break;
+                }
 
-                const chunk = decoder.decode(value);
+                buffer += decoder.decode(value, { stream: true });
+                
+                let boundary = buffer.lastIndexOf('\n\n');
+                if (boundary !== -1) {
+                    const completedMessages = buffer.substring(0, boundary);
+                    buffer = buffer.substring(boundary + 2);
+                    processChunk(completedMessages);
+                }
+            }
+
+            function processChunk(chunk) {
                 const lines = chunk.split('\n');
-
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.slice(6));
-                        
-                        // Debug logging
-                        console.log('Stream data:', data);
-
-                        if (data.error) {
-                            this.showStatus(`Error: ${data.error}`, 'error');
-                            streamingMessage.remove();
-                            return;
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            handleStreamData(data);
+                        } catch (e) {
+                            console.error('Error parsing stream data:', e, 'line:', line);
                         }
+                    }
+                }
+            }
 
-                        if (data.type === 'metadata') {
-                            currentModel = data.model;
-                            timestamp = data.timestamp;
+            function handleStreamData(data) {
+                // Debug logging
+                console.log('Stream data:', data);
 
-                            streamingMessage.innerHTML = `
-                                <div class="message-header">
-                                    <span class="message-model">${this.escapeHtml(currentModel)}</span>
-                                    <span class="message-timestamp">${new Date(timestamp).toLocaleString()}</span>
-                                </div>
-                                <div class="message-content"></div>
-                            `;
-                            messagesContainer.appendChild(streamingMessage);
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        } else if (data.type === 'content') {
-                            fullContent += data.chunk;
-                            console.log('Accumulated content:', fullContent);
-                            const contentDiv = streamingMessage.querySelector('.message-content');
-                            contentDiv.innerHTML = this.renderMarkdown(fullContent);
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        } else if (data.type === 'done') {
-                            streamingMessage.classList.remove('streaming');
+                if (data.error) {
+                    app.showStatus(`Error: ${data.error}`, 'error');
+                    streamingMessage.remove();
+                    return;
+                }
 
-                            // Add metadata footer
-                            const metaDiv = document.createElement('div');
-                            metaDiv.className = 'message-meta';
-                            metaDiv.innerHTML = `
-                                <span class="message-meta-item">🎯 ${data.tokens_used} tokens</span>
-                                <span class="message-meta-item">💰 $${data.cost.toFixed(6)}</span>
-                            `;
-                            streamingMessage.appendChild(metaDiv);
+                if (data.type === 'metadata') {
+                    currentModel = data.model;
+                    timestamp = data.timestamp;
 
-                            this.updateNextModel(data.next_model);
-                            this.updateTokenUsage(data.token_usage);
-                            this.showStatus('Response complete', 'success');
-                            this.updateGlobalStats({ tokens_used: data.tokens_used, cost: data.cost });
+                    streamingMessage.innerHTML = `
+                        <div class="message-header">
+                            <span class="message-model">${app.escapeHtml(currentModel)}</span>
+                            <span class="message-timestamp">${new Date(timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="message-content"></div>
+                    `;
+                    messagesContainer.appendChild(streamingMessage);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                } else if (data.type === 'content') {
+                    fullContent += data.chunk;
+                    const contentDiv = streamingMessage.querySelector('.message-content');
+                    if (contentDiv) {
+                        contentDiv.innerHTML = app.renderMarkdown(fullContent);
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else if (data.type === 'done') {
+                    streamingMessage.classList.remove('streaming');
 
-                            if (this.autoMode) {
-                                setTimeout(() => this.nextTurn(), 2000);
-                            }
-                        }
+                    // Add metadata footer
+                    const metaDiv = document.createElement('div');
+                    metaDiv.className = 'message-meta';
+                    metaDiv.innerHTML = `
+                        <span class="message-meta-item">🎯 ${data.tokens_used} tokens</span>
+                        <span class="message-meta-item">💰 $${data.cost.toFixed(6)}</span>
+                    `;
+                    streamingMessage.appendChild(metaDiv);
+
+                    app.updateNextModel(data.next_model);
+                    app.updateTokenUsage(data.token_usage);
+                    app.showStatus('Response complete', 'success');
+                    app.updateGlobalStats({ tokens_used: data.tokens_used, cost: data.cost });
+
+                    if (app.autoMode) {
+                        setTimeout(() => app.nextTurn(), 2000);
                     }
                 }
             }

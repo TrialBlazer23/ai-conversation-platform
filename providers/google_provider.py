@@ -124,14 +124,21 @@ class GoogleProvider(BaseAIProvider):
             
             result = response.json()
             
+            # Debug logging
+            print(f"DEBUG GOOGLE: Full API response: {json.dumps(result, indent=2)}")
+            
             # Extract text from response
             if 'candidates' in result and len(result['candidates']) > 0:
                 candidate = result['candidates'][0]
+                print(f"DEBUG GOOGLE: Candidate: {candidate}")
                 if 'content' in candidate and 'parts' in candidate['content']:
                     for part in candidate['content']['parts']:
                         if 'text' in part:
-                            return part['text']
+                            extracted_text = part['text']
+                            print(f"DEBUG GOOGLE: Extracted text: {extracted_text}")
+                            return extracted_text
             
+            print("DEBUG GOOGLE: No response generated - returning default message")
             return "No response generated"
         
         except requests.exceptions.RequestException as e:
@@ -162,27 +169,62 @@ class GoogleProvider(BaseAIProvider):
             response = requests.post(url, headers=headers, json=payload, stream=True)
             response.raise_for_status()
             
-            # Process streaming response
-            for line in response.iter_lines():
-                if line:
-                    line = line.decode('utf-8')
-                    if line.startswith('data: '):
+            # Process streaming response with a buffer to handle fragmented JSON
+            buffer = ""
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    buffer += chunk.decode('utf-8')
+                    
+                    # The stream is a JSON array, so we need to handle it carefully.
+                    # The individual items in the array are JSON objects.
+                    # Let's find the boundaries of these objects.
+                    
+                    # Clean up the start of the buffer
+                    buffer = buffer.lstrip('[\n ,')
+
+                    while '}' in buffer:
                         try:
-                            json_str = line[6:]  # Remove 'data: ' prefix
-                            if json_str.strip() == '[DONE]':
+                            # Find the end of the first JSON object
+                            end_of_object = buffer.find('}') + 1
+                            json_str = buffer[:end_of_object]
+                            
+                            # Find the actual end of the object by balancing braces
+                            open_braces = json_str.count('{')
+                            close_braces = json_str.count('}')
+                            
+                            search_offset = end_of_object
+                            while open_braces > close_braces and search_offset < len(buffer):
+                                next_brace = buffer.find('}', search_offset)
+                                if next_brace != -1:
+                                    end_of_object = next_brace + 1
+                                    json_str = buffer[:end_of_object]
+                                    close_braces += 1
+                                    search_offset = end_of_object
+                                else:
+                                    # Not enough data for a full object, break to get more
+                                    break
+                            
+                            if open_braces > close_braces:
+                                # Still not a complete object in buffer
                                 break
-                                
+
                             chunk_data = json.loads(json_str)
                             
-                            # Extract text from chunk
                             if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
                                 candidate = chunk_data['candidates'][0]
                                 if 'content' in candidate and 'parts' in candidate['content']:
                                     for part in candidate['content']['parts']:
                                         if 'text' in part:
                                             yield part['text']
+                            
+                            # Move buffer past the processed object
+                            buffer = buffer[end_of_object:]
+                            # Clean up for next object
+                            buffer = buffer.lstrip(',\n ')
+
                         except json.JSONDecodeError:
-                            continue
+                            # Incomplete JSON object in buffer, need more data
+                            break
         
         except requests.exceptions.RequestException as e:
             raise Exception(f"Google API streaming request error: {str(e)}")
