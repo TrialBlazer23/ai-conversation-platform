@@ -84,7 +84,7 @@ class TestRateLimitHandler:
     
     def test_no_wait_on_first_call(self):
         """Test that first call doesn't wait"""
-        handler = RateLimitHandler(requests_per_second=10)
+        handler = RateLimitHandler(calls_per_minute=600)
         
         start_time = time.time()
         handler.wait_if_needed()
@@ -94,7 +94,7 @@ class TestRateLimitHandler:
     
     def test_rate_limiting_enforced(self):
         """Test that rate limiting is enforced"""
-        handler = RateLimitHandler(requests_per_second=5)  # 5 requests per second = 0.2s between requests
+        handler = RateLimitHandler(calls_per_minute=300)  # 5 requests per second = 0.2s between requests
         
         # First call - no wait
         handler.wait_if_needed()
@@ -109,7 +109,7 @@ class TestRateLimitHandler:
     
     def test_multiple_rapid_calls(self):
         """Test multiple rapid calls are rate limited"""
-        handler = RateLimitHandler(requests_per_second=10)
+        handler = RateLimitHandler(calls_per_minute=600)
         
         start_time = time.time()
         for _ in range(3):
@@ -121,7 +121,7 @@ class TestRateLimitHandler:
     
     def test_no_wait_after_sufficient_delay(self):
         """Test that no waiting occurs if enough time has passed"""
-        handler = RateLimitHandler(requests_per_second=5)
+        handler = RateLimitHandler(calls_per_minute=300)
         
         handler.wait_if_needed()
         time.sleep(0.25)  # Wait longer than required interval

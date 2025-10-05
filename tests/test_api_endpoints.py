@@ -18,18 +18,16 @@ class TestConfigEndpoints:
         assert response.status_code == 200
         
         data = json.loads(response.data)
-        assert 'participants' in data
-        assert isinstance(data['participants'], list)
+        assert data == {}
     
     def test_save_config(self, client):
         """Test saving configuration"""
         config = {
-            'title': 'Test Conversation',
-            'system_message': 'You are helpful.',
-            'participants': [{
-                'name': 'Assistant',
+            'api_keys': {'openai': 'test-key'},
+            'models': [{
                 'provider': 'openai',
-                'model': 'gpt-4'
+                'model': 'gpt-4',
+                'name': 'Assistant'
             }]
         }
         
@@ -41,19 +39,26 @@ class TestConfigEndpoints:
         # Verify it was saved
         response = client.get('/api/config')
         data = json.loads(response.data)
-        assert data['title'] == 'Test Conversation'
+        assert data['api_keys']['openai'] == 'test-key'
     
     @patch('utils.config_validator.ConfigValidator.validate_all_configs')
     def test_validate_config_endpoint(self, mock_validate, client):
         """Test configuration validation endpoint"""
         mock_validate.return_value = {
-            'openai': {'valid': True},
-            'anthropic': {'valid': False, 'error': 'Invalid key'}
+            'valid': False,
+            'api_keys': {
+                'openai': {'valid': True, 'message': 'valid'},
+                'anthropic': {'valid': False, 'message': 'Invalid key'}
+            },
+            'models': []
         }
         
         config = {
-            'openai_api_key': 'test-key',
-            'anthropic_api_key': 'invalid-key'
+            'api_keys': {
+                'openai': 'test-key',
+                'anthropic': 'invalid-key'
+            },
+            'models': []
         }
         
         response = client.post('/api/config/validate',
@@ -62,8 +67,8 @@ class TestConfigEndpoints:
         assert response.status_code == 200
         
         data = json.loads(response.data)
-        assert data['openai']['valid'] is True
-        assert data['anthropic']['valid'] is False
+        assert data['api_keys']['openai']['valid'] is True
+        assert data['api_keys']['anthropic']['valid'] is False
 
 
 class TestConversationEndpoints:
@@ -75,81 +80,67 @@ class TestConversationEndpoints:
         assert response.status_code == 200
         
         data = json.loads(response.data)
-        assert isinstance(data, list)
-        assert len(data) == 0
+        assert data['status'] == 'success'
+        assert isinstance(data['conversations'], list)
+        assert len(data['conversations']) == 0
     
     def test_create_conversation(self, client):
         """Test creating a new conversation"""
-        # First save a config
-        config = {
-            'title': 'Test Conversation',
-            'system_message': 'You are helpful.',
-            'participants': [{
-                'name': 'Assistant',
+        conv_data = {
+            'initial_prompt': 'Test prompt',
+            'models': [{
                 'provider': 'openai',
                 'model': 'gpt-4',
-                'temperature': 0.7,
-                'max_tokens': 1000
+                'name': 'Assistant'
             }]
         }
         
-        client.post('/api/config',
-                    data=json.dumps(config),
-                    content_type='application/json')
-        
-        # Create conversation
-        response = client.post('/api/conversations/new')
+        response = client.post('/api/conversation/start',
+                               data=json.dumps(conv_data),
+                               content_type='application/json')
         assert response.status_code == 200
         
         data = json.loads(response.data)
-        assert 'id' in data
-        assert data['title'] == 'Test Conversation'
+        assert data['status'] == 'success'
+        assert 'conversation_id' in data
     
-    @patch('providers.openai_provider.openai.OpenAI')
-    def test_send_message(self, mock_openai, client):
+    @patch('openai.OpenAI')
+    def test_send_message(self, mock_openai_class, client):
         """Test sending a message"""
         # Setup mock
         mock_client = Mock()
         mock_response = Mock()
         mock_response.choices = [Mock(message=Mock(content="Test response"))]
-        mock_response.usage = Mock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-        mock_response.model = "gpt-4"
         mock_client.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_client
-        
-        # Setup config
-        config = {
-            'title': 'Test',
-            'system_message': 'You are helpful.',
-            'participants': [{
-                'name': 'Assistant',
-                'provider': 'openai',
-                'model': 'gpt-4',
-                'temperature': 0.7,
-                'max_tokens': 1000
-            }],
-            'openai_api_key': 'test-key'
-        }
-        client.post('/api/config',
-                    data=json.dumps(config),
-                    content_type='application/json')
+        mock_openai_class.return_value = mock_client
         
         # Create conversation
-        response = client.post('/api/conversations/new')
-        conv_data = json.loads(response.data)
-        conversation_id = conv_data['id']
+        conv_data = {
+            'initial_prompt': 'Test prompt',
+            'models': [{
+                'provider': 'openai',
+                'model': 'gpt-4',
+                'name': 'Assistant'
+            }]
+        }
+        response = client.post('/api/conversation/start',
+                               data=json.dumps(conv_data),
+                               content_type='application/json')
+        conversation_id = json.loads(response.data)['conversation_id']
         
         # Send message (non-streaming for test)
         message_data = {
-            'message': 'Hello',
-            'stream': False
+            'edited_message': 'Hello',
         }
         
-        response = client.post(f'/api/conversations/{conversation_id}/message',
+        response = client.post(f'/api/conversation/{conversation_id}/next',
                                data=json.dumps(message_data),
                                content_type='application/json')
         
         assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success'
+        assert data['message']['content'] == 'Test response'
 
 
 class TestHealthEndpoint:

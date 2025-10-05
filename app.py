@@ -223,6 +223,7 @@ def next_turn(conversation_id):
         data = request.json
         config = session.get('config', {})
         edited_message = data.get('edited_message')
+        context_level = data.get('context_level', 'full')
         
         conversation = conversation_manager.get_conversation(conversation_id)
         if not conversation:
@@ -247,7 +248,9 @@ def next_turn(conversation_id):
         )
         
         # Get conversation history for API
-        messages = conversation_manager.get_messages_for_api(conversation_id)
+        messages = conversation_manager.get_messages_for_api(
+            conversation_id, context_level=context_level
+        )
         
         # Use edited message if provided
         if edited_message and messages:
@@ -324,6 +327,7 @@ def next_turn_stream(conversation_id):
             data = request.json
             config = session.get('config', {})
             edited_message = data.get('edited_message')
+            context_level = data.get('context_level', 'full')
             
             conversation = conversation_manager.get_conversation(conversation_id)
             if not conversation:
@@ -353,7 +357,9 @@ def next_turn_stream(conversation_id):
             )
             
             # Get conversation history
-            messages = conversation_manager.get_messages_for_api(conversation_id)
+            messages = conversation_manager.get_messages_for_api(
+                conversation_id, context_level=context_level
+            )
             
             # Use edited message if provided
             if edited_message and messages:

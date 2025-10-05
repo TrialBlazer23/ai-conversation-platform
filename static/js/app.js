@@ -7,6 +7,7 @@ class ConversationApp {
     constructor() {
         this.conversationId = null;
         this.autoMode = false;
+        this.isStreaming = false;
         this.streamingEnabled = true;
         this.currentConfig = {
             api_keys: {},
@@ -496,6 +497,11 @@ class ConversationApp {
             return;
         }
 
+        if (this.isStreaming) {
+            this.showStatus('A response is already in progress.', 'warning');
+            return;
+        }
+
         if (this.streamingEnabled) {
             await this.nextTurnStreaming(editedMessage);
         } else {
@@ -508,10 +514,11 @@ class ConversationApp {
         this.setButtonsDisabled(true);
 
         try {
+            const contextLevel = document.getElementById('context-level-select').value;
             const response = await fetch(`/api/conversation/${this.conversationId}/next`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ edited_message: editedMessage })
+                body: JSON.stringify({ edited_message: editedMessage, context_level: contextLevel })
             });
 
             const data = await response.json();
@@ -542,6 +549,7 @@ class ConversationApp {
     }
 
     async nextTurnStreaming(editedMessage = null) {
+        this.isStreaming = true;
         this.showStatus('Streaming response...', 'loading');
         this.setButtonsDisabled(true);
 
@@ -554,10 +562,11 @@ class ConversationApp {
         let timestamp = '';
 
         try {
+            const contextLevel = document.getElementById('context-level-select').value;
             const response = await fetch(`/api/conversation/${this.conversationId}/next/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ edited_message: editedMessage })
+                body: JSON.stringify({ edited_message: editedMessage, context_level: contextLevel })
             });
 
             const reader = response.body.getReader();
@@ -655,6 +664,7 @@ class ConversationApp {
             console.error(error);
             streamingMessage.remove();
         } finally {
+            this.isStreaming = false;
             this.setButtonsDisabled(false);
         }
     }
@@ -679,7 +689,9 @@ class ConversationApp {
             btn.innerHTML = '<span class="btn-icon">⏸️</span> Stop Auto';
             btn.classList.add('btn-danger');
             btn.classList.remove('btn-primary');
-            this.nextTurn();
+            if (!this.isStreaming) {
+                this.nextTurn();
+            }
         } else {
             btn.innerHTML = '<span class="btn-icon">▶️</span> Auto Mode';
             btn.classList.add('btn-primary');

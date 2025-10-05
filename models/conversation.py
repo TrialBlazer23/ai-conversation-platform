@@ -173,24 +173,31 @@ class ConversationManager:
 
         return [msg.to_dict() for msg in conversation.messages]
 
-    def get_messages_for_api(self, conversation_id: str) -> List[Dict]:
+    def get_messages_for_api(
+        self, conversation_id: str, context_level: str = "full", summary_threshold: int = 4
+    ) -> List[Dict]:
         """
-        Get messages formatted for API calls
+        Get messages formatted for API calls, with context control.
 
         Args:
-            conversation_id: Conversation identifier
+            conversation_id: The ID of the conversation.
+            context_level: 'full' or 'summary'.
+            summary_threshold: Number of recent messages to include in summary.
 
         Returns:
-            List of messages in API format
+            A list of messages formatted for the API.
         """
         conversation = db.session.get(ConversationModel, conversation_id)
         if not conversation:
             return []
 
-        return [
-            {'role': msg.role, 'content': msg.content}
-            for msg in conversation.messages
-        ]
+        messages = conversation.messages
+        if context_level == 'summary' and len(messages) > summary_threshold:
+            # Include the initial prompt and the last few messages for context
+            summary_messages = [messages[0]] + messages[-summary_threshold:]
+            return [{'role': msg.role, 'content': msg.content} for msg in summary_messages]
+
+        return [{'role': msg.role, 'content': msg.content} for msg in messages]
 
     def delete_conversation(self, conversation_id: str) -> bool:
         """
