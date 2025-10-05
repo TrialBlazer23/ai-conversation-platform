@@ -163,26 +163,23 @@ class GoogleProvider(BaseAIProvider):
             response.raise_for_status()
             
             # Process streaming response
+            # Gemini returns newline-delimited JSON, NOT SSE format
             for line in response.iter_lines():
                 if line:
-                    line = line.decode('utf-8')
-                    if line.startswith('data: '):
-                        try:
-                            json_str = line[6:]  # Remove 'data: ' prefix
-                            if json_str.strip() == '[DONE]':
-                                break
-                                
-                            chunk_data = json.loads(json_str)
-                            
-                            # Extract text from chunk
-                            if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
-                                candidate = chunk_data['candidates'][0]
-                                if 'content' in candidate and 'parts' in candidate['content']:
-                                    for part in candidate['content']['parts']:
-                                        if 'text' in part:
-                                            yield part['text']
-                        except json.JSONDecodeError:
-                            continue
+                    try:
+                        # Decode and parse JSON directly (no 'data: ' prefix)
+                        chunk_data = json.loads(line.decode('utf-8'))
+                        
+                        # Extract text from chunk
+                        if 'candidates' in chunk_data and len(chunk_data['candidates']) > 0:
+                            candidate = chunk_data['candidates'][0]
+                            if 'content' in candidate and 'parts' in candidate['content']:
+                                for part in candidate['content']['parts']:
+                                    if 'text' in part:
+                                        yield part['text']
+                    except json.JSONDecodeError:
+                        # Skip lines that aren't valid JSON
+                        continue
         
         except requests.exceptions.RequestException as e:
             raise Exception(f"Google API streaming request error: {str(e)}")
