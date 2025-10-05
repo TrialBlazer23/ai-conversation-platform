@@ -40,20 +40,26 @@
                         <div class="form-group">
                             <label for="openai-key">
                                 <span class="provider-icon">🔵</span> OpenAI API Key:
+                                <small class="help-text" title="Get your API key from platform.openai.com">ℹ️</small>
                             </label>
-                            <input type="password" id="openai-key" placeholder="sk-...">
+                            <input type="password" id="openai-key" placeholder="sk-..." 
+                                   aria-label="OpenAI API Key" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label for="anthropic-key">
                                 <span class="provider-icon">🟣</span> Anthropic API Key:
+                                <small class="help-text" title="Get your API key from console.anthropic.com">ℹ️</small>
                             </label>
-                            <input type="password" id="anthropic-key" placeholder="sk-ant-...">
+                            <input type="password" id="anthropic-key" placeholder="sk-ant-..." 
+                                   aria-label="Anthropic API Key" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label for="google-key">
                                 <span class="provider-icon">🔴</span> Google API Key:
+                                <small class="help-text" title="Get your API key from makersuite.google.com">ℹ️</small>
                             </label>
-                            <input type="password" id="google-key" placeholder="AIza...">
+                            <input type="password" id="google-key" placeholder="AIza..." 
+                                   aria-label="Google API Key" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label for="ollama-status">
@@ -80,15 +86,20 @@
 
                 <div class="section">
                     <h3>Initial Prompt</h3>
-                    <textarea id="initial-prompt" rows="4" placeholder="Enter the initial prompt to start the conversation..."></textarea>
+                    <textarea id="initial-prompt" rows="4" 
+                              placeholder="Enter the initial prompt to start the conversation..." 
+                              aria-label="Initial prompt for conversation"
+                              minlength="10"></textarea>
                     <div class="prompt-stats" id="prompt-stats"></div>
                 </div>
 
                 <div class="button-group">
-                    <button id="save-config-btn" class="btn btn-primary">
+                    <button id="save-config-btn" class="btn btn-primary" 
+                            title="Save configuration (Ctrl+S)" aria-label="Save configuration">
                         <span class="btn-icon">💾</span> Save Configuration
                     </button>
-                    <button id="start-conversation-btn" class="btn btn-success">
+                    <button id="start-conversation-btn" class="btn btn-success" 
+                            title="Start conversation (Ctrl+Enter)" aria-label="Start conversation">
                         <span class="btn-icon">🚀</span> Start Conversation
                     </button>
                 </div>
