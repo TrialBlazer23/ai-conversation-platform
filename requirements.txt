@@ -4,6 +4,10 @@ Flask-CORS==4.0.0
 Flask-SocketIO==5.3.5
 Flask-SQLAlchemy==3.1.1
 
+# Security & Rate Limiting (NEW)
+Flask-Limiter==3.5.0
+Flask-WTF==1.2.1
+
 # Database
 SQLAlchemy==2.0.23
 alembic==1.13.1
@@ -15,6 +19,14 @@ requests==2.31.0
 
 # Token Management
 tiktoken==0.5.2
+
+# Testing (NEW - Optional, for development)
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+
+# Documentation (NEW - Optional)
+flasgger==0.9.7.1
 
 # Utilities
 python-dotenv==1.0.0

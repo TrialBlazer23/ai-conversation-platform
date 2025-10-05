@@ -17,13 +17,15 @@ class Conversation(db.Model):
     __tablename__ = 'conversations'
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
     initial_prompt: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(20), default='active')
+    status: Mapped[str] = mapped_column(String(20), default='active', index=True)
     current_model_idx: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    is_favorite: Mapped[bool] = mapped_column(db.Boolean, default=False, index=True)
+    title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # Custom title, falls back to initial_prompt
 
     # Relationships
     messages: Mapped[List["Message"]] = relationship(
@@ -34,6 +36,12 @@ class Conversation(db.Model):
     model_configs: Mapped[List["ModelConfig"]] = relationship(
         back_populates="conversation",
         cascade="all, delete-orphan"
+    )
+    
+    # Add composite indexes for common query patterns
+    __table_args__ = (
+        db.Index('idx_status_updated', 'status', 'updated_at'),
+        db.Index('idx_created_status', 'created_at', 'status'),
     )
 
     def to_dict(self) -> dict:
@@ -47,6 +55,9 @@ class Conversation(db.Model):
             'current_model_idx': self.current_model_idx,
             'total_tokens': self.total_tokens,
             'total_cost': self.total_cost,
+            'is_favorite': self.is_favorite,
+            'title': self.title,
+            'display_title': self.title or self.initial_prompt[:60] + ('...' if len(self.initial_prompt) > 60 else ''),
             'messages': [msg.to_dict() for msg in self.messages],
             'model_configs': [cfg.to_dict() for cfg in self.model_configs]
         }
@@ -59,17 +70,23 @@ class Message(db.Model):
     __tablename__ = 'messages'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    conversation_id: Mapped[str] = mapped_column(String(36), ForeignKey('conversations.id'))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    role: Mapped[str] = mapped_column(String(20))  # 'user' or 'assistant'
+    conversation_id: Mapped[str] = mapped_column(String(36), ForeignKey('conversations.id'), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    role: Mapped[str] = mapped_column(String(20), index=True)  # 'user' or 'assistant'
     content: Mapped[str] = mapped_column(Text)
-    model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     tokens_used: Mapped[int] = mapped_column(Integer, default=0)
     cost: Mapped[float] = mapped_column(Float, default=0.0)
     extra_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+    
+    # Add composite index for common queries
+    __table_args__ = (
+        db.Index('idx_conversation_created', 'conversation_id', 'created_at'),
+        db.Index('idx_conversation_role', 'conversation_id', 'role'),
+    )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for API responses"""

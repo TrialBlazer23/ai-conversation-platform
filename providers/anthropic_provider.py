@@ -4,19 +4,24 @@ Anthropic Claude provider implementation with streaming support
 from typing import List, Dict, Generator
 
 from .base_provider import BaseAIProvider
+from utils.retry_handler import with_retry, RateLimitHandler
 
 
 class AnthropicProvider(BaseAIProvider):
     """
-    Anthropic Claude API provider with streaming capabilities
+    Anthropic Claude API provider with streaming capabilities and retry logic
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.supports_streaming = True
+        self.rate_limiter = RateLimitHandler(calls_per_minute=50)  # Anthropic has stricter limits
 
+    @with_retry(max_retries=3, base_delay=1.0)
     def generate_response(self, messages: List[Dict]) -> str:
-        """Generate response using Anthropic API"""
+        """Generate response using Anthropic API with retry logic"""
+        self.rate_limiter.wait_if_needed()
+        
         try:
             from anthropic import Anthropic
 
@@ -37,6 +42,8 @@ class AnthropicProvider(BaseAIProvider):
 
     def generate_response_stream(self, messages: List[Dict]) -> Generator[str, None, None]:
         """Generate streaming response using Anthropic API"""
+        self.rate_limiter.wait_if_needed()
+        
         try:
             from anthropic import Anthropic
 

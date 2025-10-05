@@ -4,15 +4,15 @@
   "initial_prompt": "Please review the following code:\n\n[CODE]\n\nProvide feedback on: correctness, efficiency, readability, best practices, and potential bugs.",
   "models": [
     {
-      "provider": "openai",
-      "model": "gpt-4",
+      "provider": "google",
+      "model": "gemini-2.0-flash-exp",
       "name": "Security Reviewer",
       "temperature": 0.3,
       "system_prompt": "You are a security-focused code reviewer. Analyze code for security vulnerabilities, potential exploits, input validation issues, and security best practices. Be thorough and specific."
     },
     {
-      "provider": "anthropic",
-      "model": "claude-3-opus-20240229",
+      "provider": "google",
+      "model": "gemini-2.0-flash-exp",
       "name": "Performance Reviewer",
       "temperature": 0.3,
       "system_prompt": "You are a performance-focused code reviewer. Analyze code for efficiency, algorithmic complexity, resource usage, and optimization opportunities. Suggest concrete improvements."

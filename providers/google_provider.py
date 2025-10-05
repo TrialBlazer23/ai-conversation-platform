@@ -7,13 +7,14 @@ import os
 import json
 import requests
 from .base_provider import BaseAIProvider
+from utils.retry_handler import with_retry, RateLimitHandler
 
 # Using direct REST API calls following the new @google/genai format
 
 
 class GoogleProvider(BaseAIProvider):
     """
-    Google AI Provider using the new Gemini API REST format
+    Google AI Provider using the new Gemini API REST format with retry logic
     
     Supports latest Gemini models:
     - gemini-2.5-pro - Latest flagship model
@@ -44,6 +45,7 @@ class GoogleProvider(BaseAIProvider):
         self.max_tokens = max_tokens
         self.supports_streaming = True
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.rate_limiter = RateLimitHandler(calls_per_minute=60)
         
         if not api_key:
             raise ValueError("Google API key is required")
@@ -99,9 +101,10 @@ class GoogleProvider(BaseAIProvider):
             
         return payload
     
+    @with_retry(max_retries=3, base_delay=1.0)
     def generate_response(self, messages: List[Dict]) -> str:
         """
-        Generate a non-streaming response
+        Generate a non-streaming response with retry logic
         
         Args:
             messages: List of message dictionaries with 'role' and 'content'
@@ -109,6 +112,8 @@ class GoogleProvider(BaseAIProvider):
         Returns:
             Generated response text
         """
+        self.rate_limiter.wait_if_needed()
+        
         try:
             payload = self._create_request_payload(messages)
             
@@ -156,6 +161,8 @@ class GoogleProvider(BaseAIProvider):
         Yields:
             Chunks of generated text
         """
+        self.rate_limiter.wait_if_needed()
+        
         try:
             payload = self._create_request_payload(messages)
             

@@ -16,6 +16,11 @@ class ConversationApp {
         this.templates = [];
         this.tokenUsage = null;
 
+            this.searchResults = [];
+        this.historyOffset = 0;
+        this.historyLimit = 20;
+        this.showingFavorites = false;
+
         this.init();
     }
 
@@ -26,6 +31,123 @@ class ConversationApp {
         await this.checkOllamaStatus();
         this.loadConfig();
         this.addModelConfig(); // Add first model by default
+        this.detectColorScheme(); // Auto-detect dark mode preference
+        await this.loadConversationHistory(); // Load history sidebar
+
+        // Setup search event listeners
+        const searchBtn = document.getElementById('conversation-search-btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => this.searchConversations());
+        }
+        const searchInput = document.getElementById('conversation-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.searchConversations();
+            });
+        }
+    }
+
+    async searchConversations() {
+        // Get filter values
+        const q = document.getElementById('conversation-search-input').value.trim();
+        const model = document.getElementById('conversation-search-model').value;
+        const status = document.getElementById('conversation-search-status').value;
+        const favoritesOnly = document.getElementById('conversation-search-favorites')?.checked || false;
+        const startDate = document.getElementById('conversation-search-start-date').value;
+        const endDate = document.getElementById('conversation-search-end-date').value;
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (q) params.append('q', q);
+        if (model) params.append('model', model);
+        if (status) params.append('status', status);
+        if (favoritesOnly) params.append('favorites_only', 'true');
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+
+        this.showStatus('Searching conversations...', 'loading');
+        try {
+            const response = await fetch(`/api/conversations/search?${params.toString()}`);
+            this.searchResults = await response.json();
+            this.renderSearchResults();
+            this.showStatus(`Found ${this.searchResults.length} conversations`, 'success');
+        } catch (error) {
+            this.showStatus('Error searching conversations', 'error');
+            console.error('Search error:', error);
+        }
+    }
+
+    renderSearchResults() {
+        // Display search results in the conversation panel with enhanced features
+        const container = document.getElementById('messages-container');
+        if (!container) return;
+        if (this.searchResults.length === 0) {
+            container.innerHTML = '<div class="no-results">No conversations found.</div>';
+            return;
+        }
+        container.innerHTML = this.searchResults.map(conv => `
+            <div class="conversation-result" data-conversation-id="${conv.id}">
+                <div class="result-header">
+                    <div class="result-title-section">
+                        <button class="favorite-btn ${conv.is_favorite ? 'favorited' : ''}" 
+                                onclick="app.toggleFavorite('${conv.id}')" 
+                                title="${conv.is_favorite ? 'Remove from favorites' : 'Add to favorites'}">
+                            ★
+                        </button>
+                        <span class="result-title editable-title" 
+                              onclick="app.editTitle('${conv.id}', this)"
+                              title="Click to edit title">
+                            ${this.escapeHtml(conv.display_title || conv.initial_prompt.slice(0, 60))}${(!conv.display_title && conv.initial_prompt.length > 60) ? '...' : ''}
+                        </span>
+                    </div>
+                    <span class="result-date">${new Date(conv.created_at).toLocaleString()}</span>
+                </div>
+                <div class="result-meta">
+                    <span class="result-status">Status: ${conv.status}</span>
+                    <span class="result-tokens">Tokens: ${conv.total_tokens}</span>
+                    <span class="result-cost">Cost: $${conv.total_cost.toFixed(4)}</span>
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-sm btn-primary" onclick="app.loadConversationById('${conv.id}')">Open</button>
+                    <button class="btn btn-sm btn-secondary" onclick="app.exportConversation('${conv.id}')">Export</button>
+                    <button class="btn btn-sm btn-outline" onclick="app.duplicateConversation('${conv.id}')">Duplicate</button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteConversation('${conv.id}')" title="Delete conversation">🗑️ Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async loadConversationById(conversationId) {
+        // TODO: Implement loading a conversation by ID and displaying its messages
+        this.showStatus(`Loading conversation ${conversationId}...`, 'loading');
+        // ...existing code to load and display conversation...
+    }
+    async searchConversations() {
+        // Get filter values
+        const q = document.getElementById('conversation-search-input').value.trim();
+        const model = document.getElementById('conversation-search-model').value;
+        const status = document.getElementById('conversation-search-status').value;
+        const startDate = document.getElementById('conversation-search-start-date').value;
+        const endDate = document.getElementById('conversation-search-end-date').value;
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (q) params.append('q', q);
+        if (model) params.append('model', model);
+        if (status) params.append('status', status);
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+
+        this.showStatus('Searching conversations...', 'loading');
+        try {
+            const response = await fetch(`/api/conversations/search?${params.toString()}`);
+            this.searchResults = await response.json();
+            this.renderSearchResults();
+            this.showStatus(`Found ${this.searchResults.length} conversations`, 'success');
+        } catch (error) {
+            this.showStatus('Error searching conversations', 'error');
+            console.error('Search error:', error);
+        }
     }
 
     setupEventListeners() {
@@ -46,6 +168,11 @@ class ConversationApp {
         document.getElementById('send-edited-btn').addEventListener('click', () => this.sendEdited());
         document.getElementById('send-original-btn').addEventListener('click', () => this.sendOriginal());
         document.getElementById('cancel-edit-btn').addEventListener('click', () => this.cancelEdit());
+
+        // History sidebar controls
+        document.getElementById('toggle-history-btn').addEventListener('click', () => this.toggleHistorySidebar());
+        document.getElementById('show-all-btn').addEventListener('click', () => this.showAllHistory());
+        document.getElementById('show-favorites-btn').addEventListener('click', () => this.showFavoritesHistory());
 
         // Initial prompt character counter
         document.getElementById('initial-prompt').addEventListener('input', (e) => this.updatePromptStats(e.target.value));
@@ -566,6 +693,9 @@ class ConversationApp {
         messageDiv.className = `message ${message.role}`;
 
         const timestamp = new Date(message.timestamp).toLocaleString();
+        const timeAgo = window.UIEnhancements ? 
+            window.UIEnhancements.formatTimeAgo(message.timestamp) : 
+            timestamp;
         
         // Debug: Log the message object to console
         console.log('Displaying message:', message);
@@ -588,7 +718,7 @@ class ConversationApp {
         messageDiv.innerHTML = `
             <div class="message-header">
                 <span class="message-model">${this.escapeHtml(message.model || message.role)}</span>
-                <span class="message-timestamp">${timestamp}</span>
+                <span class="message-timestamp" data-iso="${message.timestamp}" title="${timestamp}">${timeAgo}</span>
             </div>
             <div class="message-content">${content}</div>
             ${metaHtml}
@@ -596,6 +726,11 @@ class ConversationApp {
 
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Add copy button if available
+        if (window.UIEnhancements) {
+            window.UIEnhancements.addCopyButton(messageDiv, messageContent);
+        }
 
         // Highlight code blocks
         messageDiv.querySelectorAll('pre code').forEach(block => {
@@ -679,22 +814,100 @@ class ConversationApp {
     async exportConversation() {
         if (!this.conversationId) return;
 
-        try {
-            const response = await fetch(`/api/conversation/${this.conversationId}/export`);
-            const data = await response.json();
+        // Show export format options
+        const format = await this.showExportFormatDialog();
+        if (!format) return; // User cancelled
 
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        try {
+            let response, blob, filename, mimeType;
+            
+            if (format === 'json') {
+                response = await fetch(`/api/conversation/${this.conversationId}/export`);
+                const data = await response.json();
+                blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                filename = `conversation_${this.conversationId.slice(0, 8)}.json`;
+                mimeType = 'application/json';
+            } else if (format === 'markdown') {
+                response = await fetch(`/api/conversation/${this.conversationId}/export/markdown`);
+                if (!response.ok) throw new Error('Export failed');
+                
+                const markdownContent = await response.text();
+                blob = new Blob([markdownContent], { type: 'text/markdown' });
+                filename = `conversation_${this.conversationId.slice(0, 8)}.md`;
+                mimeType = 'text/markdown';
+            }
+
+            // Download the file
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `conversation_${this.conversationId}_${Date.now()}.json`;
+            a.download = filename;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            this.showStatus('Conversation exported successfully', 'success');
+            this.showStatus(`Conversation exported as ${format.toUpperCase()}`, 'success');
         } catch (error) {
             this.showStatus('Error exporting conversation', 'error');
+            console.error('Export error:', error);
         }
+    }
+
+    showExportFormatDialog() {
+        return new Promise((resolve) => {
+            // Create modal dialog for format selection
+            const modal = document.createElement('div');
+            modal.className = 'export-modal-overlay';
+            modal.innerHTML = `
+                <div class="export-modal">
+                    <h3>📥 Export Conversation</h3>
+                    <p>Choose the export format:</p>
+                    <div class="export-format-options">
+                        <button class="export-format-btn" data-format="markdown">
+                            <span class="format-icon">📝</span>
+                            <span class="format-name">Markdown</span>
+                            <span class="format-desc">Human-readable, formatted text</span>
+                        </button>
+                        <button class="export-format-btn" data-format="json">
+                            <span class="format-icon">📋</span>
+                            <span class="format-name">JSON</span>
+                            <span class="format-desc">Complete data with metadata</span>
+                        </button>
+                    </div>
+                    <div class="export-modal-actions">
+                        <button class="btn btn-secondary export-cancel">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            // Add event listeners
+            modal.addEventListener('click', (e) => {
+                if (e.target.classList.contains('export-modal-overlay') || 
+                    e.target.classList.contains('export-cancel')) {
+                    document.body.removeChild(modal);
+                    resolve(null);
+                }
+                
+                if (e.target.closest('.export-format-btn')) {
+                    const format = e.target.closest('.export-format-btn').dataset.format;
+                    document.body.removeChild(modal);
+                    resolve(format);
+                }
+            });
+
+            // Handle Escape key
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    document.body.removeChild(modal);
+                    document.removeEventListener('keydown', escapeHandler);
+                    resolve(null);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+
+            document.body.appendChild(modal);
+        });
     }
 
     newConversation() {
@@ -712,6 +925,300 @@ class ConversationApp {
         document.getElementById('config-panel').style.display = 'block';
         document.getElementById('conversation-panel').style.display = 'none';
         this.showStatus('Ready for new conversation', 'success');
+    }
+
+        // Edit title inline
+    editTitle(conversationId, titleElement) {
+        const currentTitle = titleElement.textContent.trim();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentTitle;
+        input.className = 'title-editor';
+        input.style.cssText = 'width: 100%; font-size: inherit; border: 1px solid #ccc; padding: 2px 5px;';
+        
+        // Replace the span with input
+        titleElement.style.display = 'none';
+        titleElement.parentNode.insertBefore(input, titleElement.nextSibling);
+        input.focus();
+        input.select();
+        
+        const saveTitle = async () => {
+            const newTitle = input.value.trim();
+            if (newTitle && newTitle !== currentTitle) {
+                const success = await this.updateConversationTitle(conversationId, newTitle);
+                if (success) {
+                    titleElement.textContent = newTitle;
+                    // Update the search results data
+                    const conv = this.searchResults.find(c => c.id === conversationId);
+                    if (conv) conv.display_title = newTitle;
+                }
+            }
+            
+            // Restore the span and remove input
+            titleElement.style.display = '';
+            input.remove();
+        };
+        
+        const cancelEdit = () => {
+            titleElement.style.display = '';
+            input.remove();
+        };
+        
+        input.addEventListener('blur', saveTitle);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveTitle();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
+        });
+    }
+
+    // Quick wins features
+    async toggleFavorite(conversationId) {
+        if (!conversationId) return;
+        
+        try {
+            const response = await fetch(`/api/conversation/${conversationId}/favorite`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.showStatus(data.message, 'success');
+                // Update UI if needed
+                const favoriteBtn = document.querySelector(`[data-conversation-id="${conversationId}"] .favorite-btn`);
+                if (favoriteBtn) {
+                    favoriteBtn.textContent = data.is_favorite ? '⭐' : '☆';
+                    favoriteBtn.title = data.is_favorite ? 'Remove from favorites' : 'Add to favorites';
+                }
+            } else {
+                this.showStatus(data.message, 'error');
+            }
+        } catch (error) {
+            this.showStatus('Error toggling favorite', 'error');
+            console.error('Favorite error:', error);
+        }
+    }
+
+    async updateConversationTitle(conversationId, newTitle) {
+        if (!conversationId) return;
+        
+        try {
+            const response = await fetch(`/api/conversation/${conversationId}/title`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.showStatus(data.message, 'success');
+                return data.display_title;
+            } else {
+                this.showStatus(data.message, 'error');
+                return null;
+            }
+        } catch (error) {
+            this.showStatus('Error updating title', 'error');
+            console.error('Title update error:', error);
+            return null;
+        }
+    }
+
+    async duplicateConversation(conversationId) {
+        if (!conversationId) return;
+        
+        try {
+            const response = await fetch(`/api/conversation/${conversationId}/duplicate`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.showStatus(data.message, 'success');
+                // Reload history to show new conversation
+                await this.loadConversationHistory();
+                return data.new_conversation_id;
+            } else {
+                this.showStatus(data.message, 'error');
+                return null;
+            }
+        } catch (error) {
+            this.showStatus('Error duplicating conversation', 'error');
+            console.error('Duplication error:', error);
+            return null;
+        }
+    }
+
+    // Conversation History Sidebar Methods
+    async loadConversationHistory(append = false) {
+        try {
+            const params = new URLSearchParams();
+            params.append('limit', this.historyLimit);
+            params.append('offset', append ? this.historyOffset : 0);
+            if (this.showingFavorites) {
+                params.append('favorites_only', 'true');
+            }
+
+            const response = await fetch(`/api/conversations/history?${params.toString()}`);
+            const data = await response.json();
+
+            if (!append) {
+                this.historyOffset = 0;
+            }
+
+            this.renderConversationHistory(data.conversations, append);
+            this.historyOffset += data.conversations.length;
+
+            // Add "Load More" button if there are more conversations
+            if (data.has_more) {
+                this.addLoadMoreButton();
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+            document.getElementById('history-list').innerHTML = '<div class="error-history">Failed to load history</div>';
+        }
+    }
+
+    renderConversationHistory(conversations, append = false) {
+        const container = document.getElementById('history-list');
+
+        if (!append) {
+            container.innerHTML = '';
+        } else {
+            // Remove "Load More" button if it exists
+            const loadMore = container.querySelector('.load-more-history');
+            if (loadMore) loadMore.remove();
+        }
+
+        if (conversations.length === 0 && !append) {
+            container.innerHTML = '<div class="empty-history">No conversations yet</div>';
+            return;
+        }
+
+        const historyHTML = conversations.map(conv => `
+            <div class="history-item ${conv.id === this.conversationId ? 'active' : ''}" 
+                 data-conversation-id="${conv.id}">
+                <div class="history-item-header">
+                    <button class="history-favorite-btn ${conv.is_favorite ? 'favorited' : ''}" 
+                            onclick="app.toggleFavorite('${conv.id}'); event.stopPropagation();"
+                            title="${conv.is_favorite ? 'Remove from favorites' : 'Add to favorites'}">
+                        ★
+                    </button>
+                    <span class="history-title" onclick="app.loadConversationById('${conv.id}')">
+                        ${this.escapeHtml(conv.display_title || conv.initial_prompt.slice(0, 40))}${(!conv.display_title && conv.initial_prompt.length > 40) ? '...' : ''}
+                    </span>
+                </div>
+                <div class="history-item-meta">
+                    <span class="history-date">${this.formatRelativeTime(conv.updated_at)}</span>
+                    <span class="history-cost">$${conv.total_cost.toFixed(4)}</span>
+                </div>
+            </div>
+        `).join('');
+
+        container.insertAdjacentHTML('beforeend', historyHTML);
+    }
+
+    addLoadMoreButton() {
+        const container = document.getElementById('history-list');
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.className = 'load-more-history btn btn-sm btn-secondary';
+        loadMoreBtn.textContent = 'Load More';
+        loadMoreBtn.onclick = () => this.loadConversationHistory(true);
+        container.appendChild(loadMoreBtn);
+    }
+
+    toggleHistorySidebar() {
+        const sidebar = document.getElementById('history-sidebar');
+        const btn = document.getElementById('toggle-history-btn');
+        sidebar.classList.toggle('collapsed');
+        btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    }
+
+    async showAllHistory() {
+        this.showingFavorites = false;
+        document.getElementById('show-all-btn').className = 'btn btn-sm btn-secondary';
+        document.getElementById('show-favorites-btn').className = 'btn btn-sm btn-outline';
+        await this.loadConversationHistory();
+    }
+
+    async showFavoritesHistory() {
+        this.showingFavorites = true;
+        document.getElementById('show-all-btn').className = 'btn btn-sm btn-outline';
+        document.getElementById('show-favorites-btn').className = 'btn btn-sm btn-secondary';
+        await this.loadConversationHistory();
+    }
+
+    formatRelativeTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }
+
+
+    async deleteConversation(conversationId) {
+        if (!conversationId) return;
+        
+        // Confirmation dialog
+        const confirmed = confirm('Are you sure you want to delete this conversation? This action cannot be undone.');
+        if (!confirmed) return false;
+        
+        try {
+            const response = await fetch(`/api/conversation/${conversationId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.showStatus(data.message, 'success');
+                
+                // Remove from search results if displayed
+                this.searchResults = this.searchResults.filter(conv => conv.id !== conversationId);
+                this.renderSearchResults();
+                
+                return true;
+            } else {
+                this.showStatus(data.message, 'error');
+                return false;
+            }
+        } catch (error) {
+            this.showStatus('Error deleting conversation', 'error');
+            console.error('Delete error:', error);
+            return false;
+        }
+    }
+
+    // Auto-detect system dark mode preference
+    detectColorScheme() {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        
+        // Only set if no theme is currently set
+        if (!currentTheme) {
+            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            localStorage.setItem('theme', prefersDark ? 'dark' : 'light');
+        }
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            const storedTheme = localStorage.getItem('theme');
+            // Only auto-change if user hasn't manually set a preference
+            if (!storedTheme) {
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            }
+        });
     }
 
     showConversationPanel() {
@@ -785,4 +1292,18 @@ class ConversationApp {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new ConversationApp();
+    
+    // Initialize UI enhancements if available
+    if (window.UIEnhancements) {
+        window.UIEnhancements.setupKeyboardShortcuts(app);
+        window.UIEnhancements.startTimestampUpdater();
+        window.UIEnhancements.setupApiKeyValidation();
+        window.UIEnhancements.addTooltips();
+        console.log('✨ UI enhancements loaded');
+    }
+    
+    // Show welcome notification
+    if (window.notifications) {
+        notifications.show('Welcome to AI Conversation Platform! Use Ctrl+Enter to send, Ctrl+N for new conversation.', 'info', 5000);
+    }
 });

@@ -21,6 +21,21 @@
         </header>
 
         <div class="main-content">
+            <!-- Conversation History Sidebar -->
+            <div id="history-sidebar" class="history-sidebar collapsed">
+                <div class="sidebar-header">
+                    <h3>💬 History</h3>
+                    <button id="toggle-history-btn" class="btn-icon" title="Toggle sidebar">◀</button>
+                </div>
+                <div class="sidebar-controls">
+                    <button id="show-all-btn" class="btn btn-sm btn-secondary">All</button>
+                    <button id="show-favorites-btn" class="btn btn-sm btn-outline">⭐ Favorites</button>
+                </div>
+                <div class="sidebar-content" id="history-list">
+                    <div class="loading-history">Loading conversations...</div>
+                </div>
+            </div>
+
             <!-- Configuration Panel -->
             <div id="config-panel" class="panel">
                 <h2>⚙️ Configuration</h2>
@@ -120,6 +135,30 @@
                     </div>
                 </div>
 
+                    <!-- Conversation Search & Filter -->
+                    <div class="conversation-search-bar">
+                        <input type="text" id="conversation-search-input" placeholder="🔍 Search conversations..." class="search-input" />
+                        <select id="conversation-search-model" class="search-select">
+                            <option value="">All Models</option>
+                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                        </select>
+                        <select id="conversation-search-status" class="search-select">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="archived">Archived</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <label class="favorites-filter-label">
+                            <input type="checkbox" id="conversation-search-favorites" class="favorites-checkbox" />
+                            <span class="favorites-filter-text">⭐ Favorites Only</span>
+                        </label>
+                        <input type="date" id="conversation-search-start-date" class="search-date" />
+                        <input type="date" id="conversation-search-end-date" class="search-date" />
+                        <button id="conversation-search-btn" class="btn btn-sm btn-primary">Search</button>
+                    </div>
+
                 <!-- Token Usage Bar -->
                 <div class="token-usage-container">
                     <div class="token-usage-header">
@@ -174,6 +213,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
     
     <!-- Application Scripts -->
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-enhancements.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
