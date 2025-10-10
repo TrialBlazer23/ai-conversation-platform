@@ -6,6 +6,30 @@ A powerful local web application for orchestrating multi-model AI conversations 
 ![Flask](https://img.shields.io/badge/flask-3.0-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+## 📸 Screenshots
+
+### Main Interface
+![Homepage](https://github.com/user-attachments/assets/a59e3d2b-2ce9-460e-8538-8ee5d0bb09f3)
+*Modern dark-themed interface with quick-start templates, conversation history, and intuitive configuration panels*
+
+### Template Selection - Debate Mode
+![Debate Mode Template](https://github.com/user-attachments/assets/1adfb54b-8c5a-4068-a251-795213415db3)
+*Pre-configured debate template with two opposing AI models ready to argue different perspectives*
+
+### API Keys & Model Configuration
+![Model Configuration](https://github.com/user-attachments/assets/4f4216d0-cd30-46bb-9c96-f7d4c7250877)
+*Easy API key management with visual indicators and Ollama local model support*
+
+### Detailed Model Setup
+![Model Details](https://github.com/user-attachments/assets/0ee62439-7785-4592-9069-6b5db90726fd)
+*Granular control over each model: provider selection, model choice, temperature, and custom system prompts*
+
+### Brainstorm Mode Template
+![Brainstorm Template](https://github.com/user-attachments/assets/2690ee06-2938-4db0-9e6e-058d2cf6e168)
+*Multi-model brainstorming setup with different roles: Creative Explorer, Practical Analyst, and Synthesizer*
+
+---
+
 ## ✨ Features
 
 ### Core Capabilities
